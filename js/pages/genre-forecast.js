@@ -21,7 +21,7 @@ import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { mockGenreTrends }         from '../data-loader.js';
 
 const GENRE_COLORS = [
-  '#c8f000',  // acid — Pop
+  'var(--acid)',  // acid — Pop
   '#e5321c',  // red — Hip-Hop
   '#f0a830',  // amber — Electronic
   '#6aabf0',  // blue — Latin
