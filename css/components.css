@@ -851,3 +851,63 @@
     padding: var(--sp-8) var(--sp-4);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT MODE SPECIFIC ADJUSTMENTS
+══════════════════════════════════════════════════════════════ */
+
+.light-mode .vinyl-disc {
+  filter: drop-shadow(0 0 40px rgba(0,0,0,0.15));
+}
+
+.light-mode .hero-title-rhythm {
+  color: var(--text-primary);
+}
+
+.light-mode .feature-card-num {
+  color: rgba(0, 0, 0, 0.03);
+}
+
+.light-mode .feature-card:hover .feature-card-num {
+  color: rgba(0, 0, 0, 0.05);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   THEME TOGGLE BUTTON
+══════════════════════════════════════════════════════════════ */
+
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+  cursor: pointer;
+  background: transparent;
+  padding: 0;
+  margin-left: var(--sp-4);
+}
+
+.theme-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--rule-light);
+  background: var(--bg-surface);
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.light-mode .theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: none; }
+.light-mode .theme-toggle .icon-moon { display: block; }
+
+/* Handle SVG text for light mode in index.html vinyl */
+.light-mode .vinyl-disc text[fill="#5a5550"] {
+  fill: #8a8580;
+}
