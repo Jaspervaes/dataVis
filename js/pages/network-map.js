@@ -23,7 +23,7 @@ import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { mockArtistNetwork }       from '../data-loader.js';
 
 const REGION_COLORS = {
-  Europe:   '#c8f000',  // acid
+  Europe:   'var(--acid)',  // acid
   Americas: '#e5321c',  // red
   Africa:   '#f0a830',  // amber
   Asia:     '#6aabf0',  // cool blue

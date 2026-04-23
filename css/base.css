@@ -165,7 +165,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ── Selection ───────────────────────────────────────────────── */
 ::selection {
-  background: rgba(200, 240, 0, 0.2);
+  background: var(--acid-mid);
   color: var(--text-primary);
 }
 

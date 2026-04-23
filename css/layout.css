@@ -25,10 +25,14 @@
 }
 
 .site-nav.scrolled {
-  background: rgba(14, 12, 10, 0.92);
+  background: rgba(14, 12, 10, 0.92); /* Dark base alpha */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom-color: var(--rule-light);
+}
+
+.light-mode .site-nav.scrolled {
+  background: rgba(240, 235, 224, 0.92); /* Cream base alpha */
 }
 
 /* Acid rule on scroll — thin line at absolute bottom */

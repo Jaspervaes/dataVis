@@ -87,7 +87,15 @@ export function initWaveform(canvasId = 'waveform-canvas') {
   }
 
   function drawWave(wave) {
-    const [r, g, b] = wave.color;
+    let [r, g, b] = wave.color;
+
+    // In light mode, swap acid chartreuse for the darker theme-compatible moss green
+    if (document.documentElement.classList.contains('light-mode')) {
+      if (r === 200 && g === 240 && b === 0) {
+        [r, g, b] = [70, 92, 0]; // Match --acid (#465c00)
+      }
+    }
+
     ctx.beginPath();
 
     const segments = Math.min(W, 1200);

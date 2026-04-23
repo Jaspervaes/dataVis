@@ -425,7 +425,7 @@
   font-family: var(--font-mono);
   font-size: 5.5rem;
   font-weight: var(--weight-light);
-  color: rgba(200, 240, 0, 0.04);
+  color: var(--acid-dim);
   line-height: 1;
   pointer-events: none;
   user-select: none;
@@ -434,7 +434,7 @@
 }
 
 .feature-card:hover .feature-card-num {
-  color: rgba(200, 240, 0, 0.07);
+  color: var(--acid-mid);
 }
 
 .feature-card-kicker {
@@ -620,7 +620,7 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(200, 240, 0, 0.03) 50%,
+    var(--acid-dim) 50%,
     transparent 100%
   );
   animation: skel-scan 1.8s ease-in-out infinite;
@@ -850,4 +850,80 @@
   .homepage-section {
     padding: var(--sp-8) var(--sp-4);
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT MODE SPECIFIC ADJUSTMENTS
+══════════════════════════════════════════════════════════════ */
+
+.light-mode .vinyl-disc {
+  filter: drop-shadow(0 0 40px rgba(0,0,0,0.15));
+}
+
+.light-mode .hero-title-main {
+  color: var(--acid);
+}
+
+.light-mode .hero-title-rhythm {
+  color: var(--text-primary);
+}
+
+.light-mode .feature-card-num {
+  color: rgba(0, 0, 0, 0.03);
+}
+
+.light-mode .feature-card:hover .feature-card-num {
+  color: rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .btn-primary {
+  color: #f0ebe0; /* var(--cream) */
+}
+
+.light-mode .btn-primary:hover {
+  color: var(--acid);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   THEME TOGGLE BUTTON
+══════════════════════════════════════════════════════════════ */
+
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+  cursor: pointer;
+  background: transparent;
+  padding: 0;
+  margin-left: var(--sp-4);
+}
+
+.theme-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--rule-light);
+  background: var(--bg-surface);
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.light-mode .theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: none; }
+.light-mode .theme-toggle .icon-moon { display: block; }
+
+/* Handle SVG elements for light mode in index.html vinyl */
+.light-mode .vinyl-disc text[fill="#c8f000"] {
+  fill: var(--acid);
+}
+
+.light-mode .vinyl-disc text[fill="#5a5550"] {
+  fill: var(--text-muted);
 }

@@ -24,14 +24,14 @@ import { mockSankeyData }          from '../data-loader.js';
 
 // ── Design tokens (must match variables.css) ─────────────────
 const REGION_COLORS = {
-  'Europe':   '#c8f000',  // acid — dominant
+  'Europe':   'var(--acid)',  // acid — dominant
   'Americas': '#e5321c',  // red
   'Africa':   '#f0a830',  // amber
   'Asia':     '#6aabf0',  // cool blue
 };
 
 const GENRE_COLORS = {
-  'Pop':        '#c8f000',
+  'Pop':        'var(--acid)',
   'Hip-Hop':    '#e5321c',
   'Electronic': '#6aabf0',
   'Latin':      '#f0a830',

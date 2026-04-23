@@ -103,7 +103,7 @@
   --shadow-sm:   0 1px 4px rgba(0,0,0,0.55);
   --shadow-md:   0 4px 24px rgba(0,0,0,0.65);
   --shadow-lg:   0 10px 48px rgba(0,0,0,0.75);
-  --shadow-acid: 0 0 40px rgba(200, 240, 0, 0.12), 0 0 1px rgba(200, 240, 0, 0.5);
+  --shadow-acid: 0 0 40px var(--acid-dim), 0 0 1px var(--acid-border);
 
   /* ─── Transitions ─────────────────────────────────────────── */
   --t-fast: 110ms ease;
@@ -115,4 +115,34 @@
   --z-sidebar: 100;
   --z-nav:     200;
   --z-tooltip: 300;
+}
+
+/* ─── Light Mode Overrides ─────────────────────────────────── */
+.light-mode {
+  /* Cream backgrounds — moving from dark to light paper aesthetic */
+  --bg-base:     #f0ebe0; /* The project's 'cream' colour */
+  --bg-surface:  #e6e1d5;
+  --bg-elevated: #dfdace;
+  --bg-inset:    #e0dbcc;
+
+  /* The accent is changed from acid chartreuse to a darker moss green in light mode for better readability */
+  --acid:        #465c00; 
+  --acid-dim:    rgba(70, 92, 0, 0.08);
+  --acid-mid:    rgba(70, 92, 0, 0.22);
+  --acid-border: rgba(70, 92, 0, 0.35);
+
+  /* Text — inverse of dark mode */
+  --text-primary:   #1c1916;
+  --text-secondary: #4a4540;
+  --text-muted:     #7a7570;
+  
+  /* Borders — darker on light background */
+  --border:        #d5d0c5;
+  --rule:          #c5c0b5;
+  --rule-light:    #b5b0a5;
+
+  /* Shadows — softer, more natural on light paper */
+  --shadow-sm:   0 1px 4px rgba(0,0,0,0.1);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.12);
+  --shadow-lg:   0 10px 24px rgba(0,0,0,0.15);
 }

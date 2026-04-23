@@ -210,8 +210,8 @@ function render() {
     .attr('id', 'valence-gradient')
     .attr('x1', '0%').attr('y1', '0%')
     .attr('x2', '0%').attr('y2', '100%');
-  grad.append('stop').attr('offset', '0%').attr('stop-color', '#c8f000').attr('stop-opacity', 0.14);
-  grad.append('stop').attr('offset', '100%').attr('stop-color', '#c8f000').attr('stop-opacity', 0.01);
+  grad.append('stop').attr('offset', '0%').attr('stop-color', 'var(--acid)').attr('stop-opacity', 0.14);
+  grad.append('stop').attr('offset', '100%').attr('stop-color', 'var(--acid)').attr('stop-opacity', 0.01);
 
   // ── Line ──────────────────────────────────────────────────
   const lineGen = d3.line()
@@ -222,7 +222,7 @@ function render() {
   g.append('path')
     .datum(series)
     .attr('fill', 'none')
-    .attr('stroke', '#c8f000')
+    .attr('stroke', 'var(--acid)')
     .attr('stroke-width', 2.5)
     .attr('d', lineGen);
 
@@ -237,7 +237,7 @@ function render() {
     .attr('stroke-width', 1);
   focusG.append('circle')
     .attr('r', 5)
-    .attr('fill', '#c8f000')
+    .attr('fill', 'var(--acid)')
     .attr('stroke', '#f1f5f9')
     .attr('stroke-width', 1.5);
 
@@ -259,7 +259,7 @@ function render() {
 
       const crisis = crises.find(c => d.year >= c.start_year && d.year <= c.end_year);
       tooltip.show(event, tooltipHtml(`${d.year}`, [
-        { label: 'Avg. Valence', value: `${(d.valence * 100).toFixed(1)}%`, color: '#c8f000' },
+        { label: 'Avg. Valence', value: `${(d.valence * 100).toFixed(1)}%`, color: 'var(--acid)' },
         ...(crisis ? [{ label: 'Crisis', value: crisis.crisis_name, color: CRISIS_COLORS[crisis.crisis_type] }] : []),
       ]));
       tooltip.move(event);
@@ -267,7 +267,7 @@ function render() {
 
   // ── Legend ────────────────────────────────────────────────
   const legendItems = [
-    { label: 'Avg. Valence', color: '#c8f000', type: 'line' },
+    { label: 'Avg. Valence', color: 'var(--acid)', type: 'line' },
     ...Object.entries(CRISIS_COLORS).map(([k, c]) => ({ label: CRISIS_LABELS[k], color: c, type: 'rect' })),
   ];
 
