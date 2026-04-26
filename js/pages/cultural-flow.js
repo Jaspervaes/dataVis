@@ -20,14 +20,15 @@
 
 import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }   from '../tooltip.js';
-import { mockSankeyData }          from '../data-loader.js';
+import { loadCSV }                 from '../data-loader.js';
 
 // ── Design tokens (must match variables.css) ─────────────────
 const REGION_COLORS = {
-  'Europe':   'var(--acid)',  // acid — dominant
-  'Americas': '#e5321c',  // red
-  'Africa':   '#f0a830',  // amber
-  'Asia':     '#6aabf0',  // cool blue
+  'Europe':        'var(--acid)',
+  'North America': '#e5321c',
+  'Latin America': '#e07840',
+  'Africa':        '#f0a830',
+  'Asia':          '#6aabf0',
 };
 
 const GENRE_COLORS = {
@@ -39,26 +40,109 @@ const GENRE_COLORS = {
   'Afrobeats':  '#82d4be',
 };
 
-const SOURCES = ['Europe', 'Americas', 'Africa', 'Asia'];
+const SOURCES = ['Europe', 'North America', 'Latin America', 'Africa', 'Asia'];
 
-/** @type {{ nodes: object[], links: object[] }} */
-let currentData = null;
+// Maps region label → sidebar filter key (both Americas share one checkbox)
+const REGION_FILTER_KEY = {
+  'Europe':        'europe',
+  'North America': 'americas',
+  'Latin America': 'americas',
+  'Africa':        'africa',
+  'Asia':          'asia',
+};
+
+/** @type {object[]} raw CSV rows */
+let rawTracks = [];
+
+// ── Data transform ────────────────────────────────────────────
+function transformToSankey(tracks, filters) {
+  const { decadeRange, regions } = filters;
+  const [startYear, endYear] = decadeRange;
+
+  // Tally flows: region → genre
+  const flows = {};
+  for (const row of tracks) {
+    const year = +row.year;
+    if (year < startYear || year > endYear) continue;
+
+    const region = REGION_TO_NODE[row.artist_country];
+    if (!region) continue;
+    const filterKey = REGION_FILTER_KEY[region];
+    if (!regions.includes(filterKey)) continue;
+
+    const genre = row.genre;
+    if (!GENRE_COLORS[genre]) continue;
+
+    const key = `${region}|||${genre}`;
+    flows[key] = (flows[key] || 0) + 1;
+  }
+
+  if (Object.keys(flows).length === 0) return { nodes: [], links: [] };
+
+  // Build unique node list preserving source/target order
+  const nodeNames = [
+    ...SOURCES,
+    ...Object.keys(GENRE_COLORS),
+  ];
+  const nodes = nodeNames.map(name => ({ id: name, name }));
+
+  // Links use string node ids to match .nodeId(d => d.id) in the layout
+  const links = Object.entries(flows)
+    .map(([key, value]) => {
+      const [source, target] = key.split('|||');
+      return { source, target, value };
+    })
+    .filter(l => l.value > 0);
+
+  return { nodes, links };
+}
+
+// Maps ISO-2 country code → region label
+const REGION_TO_NODE = {
+  // Europe
+  GB:'Europe',DE:'Europe',FR:'Europe',SE:'Europe',NO:'Europe',NL:'Europe',
+  BE:'Europe',IT:'Europe',ES:'Europe',PT:'Europe',DK:'Europe',FI:'Europe',
+  PL:'Europe',RU:'Europe',UA:'Europe',IE:'Europe',CH:'Europe',AT:'Europe',
+  HU:'Europe',CZ:'Europe',RO:'Europe',GR:'Europe',RS:'Europe',HR:'Europe',
+  IS:'Europe',LU:'Europe',SK:'Europe',SI:'Europe',LV:'Europe',LT:'Europe',
+  EE:'Europe',BA:'Europe',MK:'Europe',ME:'Europe',AL:'Europe',
+  // North America
+  US:'North America',CA:'North America',
+  // Latin America (Spanish/Portuguese-speaking Americas + Caribbean)
+  MX:'Latin America',BR:'Latin America',CO:'Latin America',AR:'Latin America',
+  CL:'Latin America',PE:'Latin America',VE:'Latin America',CU:'Latin America',
+  JM:'Latin America',TT:'Latin America',DO:'Latin America',PA:'Latin America',
+  EC:'Latin America',BO:'Latin America',UY:'Latin America',PY:'Latin America',
+  GT:'Latin America',HN:'Latin America',CR:'Latin America',SV:'Latin America',
+  NI:'Latin America',HT:'Latin America',
+  // Africa
+  NG:'Africa',ZA:'Africa',GH:'Africa',KE:'Africa',SN:'Africa',CM:'Africa',
+  TZ:'Africa',UG:'Africa',ET:'Africa',EG:'Africa',MA:'Africa',TN:'Africa',
+  CI:'Africa',ML:'Africa',CD:'Africa',AO:'Africa',MZ:'Africa',ZW:'Africa',
+  BW:'Africa',ZM:'Africa',RW:'Africa',BJ:'Africa',TG:'Africa',BF:'Africa',
+  MW:'Africa',
+  // Asia
+  JP:'Asia',KR:'Asia',CN:'Asia',IN:'Asia',ID:'Asia',PH:'Asia',TH:'Asia',
+  VN:'Asia',MY:'Asia',SG:'Asia',PK:'Asia',BD:'Asia',IR:'Asia',TR:'Asia',
+  SA:'Asia',AE:'Asia',LB:'Asia',IL:'Asia',IQ:'Asia',SY:'Asia',KZ:'Asia',
+  UZ:'Asia',MM:'Asia',KH:'Asia',LK:'Asia',
+};
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
 
-  // TODO: Replace with loadCSV('../data/spotify-tracks.csv')
-  currentData = mockSankeyData();
+  rawTracks = await loadCSV('../data/spotify-tracks.csv');
+  const data = transformToSankey(rawTracks, getFilters());
+  render(data);
 
-  render(currentData);
-
-  window.addEventListener('filters:changed', () => {
-    // TODO: Filter real data by getFilters() before re-rendering
-    render(currentData);
+  window.addEventListener('filters:changed', (e) => {
+    render(transformToSankey(rawTracks, e.detail));
   });
 
-  window.addEventListener('resize', () => render(currentData));
+  window.addEventListener('resize', () => {
+    render(transformToSankey(rawTracks, getFilters()));
+  });
 });
 
 // ── Render ────────────────────────────────────────────────────
@@ -67,7 +151,7 @@ function render(data) {
   if (!container) return;
   container.innerHTML = '';
 
-  if (!window.d3Sankey) {
+  if (!d3.sankey) {
     container.innerHTML = `<div class="empty-state">
       <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z"/>
@@ -78,7 +162,7 @@ function render(data) {
     return;
   }
 
-  const { sankey, sankeyLinkHorizontal } = d3Sankey;
+  const { sankey, sankeyLinkHorizontal } = d3;
 
   const rect   = container.getBoundingClientRect();
   const width  = rect.width  || 800;

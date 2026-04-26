@@ -927,3 +927,23 @@
 .light-mode .vinyl-disc text[fill="#5a5550"] {
   fill: var(--text-muted);
 }
+
+/* ── Data source attribution ─────────────────────────────────── */
+.data-source {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.data-source a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.data-source a:hover {
+  color: var(--acid);
+}
