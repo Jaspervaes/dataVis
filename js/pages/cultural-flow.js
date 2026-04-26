@@ -42,11 +42,11 @@ const GENRE_COLORS = {
 
 const SOURCES = ['Europe', 'North America', 'Latin America', 'Africa', 'Asia'];
 
-// Maps region label → sidebar filter key (both Americas share one checkbox)
+// Maps region label → sidebar filter key
 const REGION_FILTER_KEY = {
   'Europe':        'europe',
-  'North America': 'americas',
-  'Latin America': 'americas',
+  'North America': 'north-america',
+  'Latin America': 'latin-america',
   'Africa':        'africa',
   'Asia':          'asia',
 };
@@ -131,6 +131,14 @@ const REGION_TO_NODE = {
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
+
+  // filters.js defaults use 'americas'; force-check the split boxes and re-sync
+  document.querySelectorAll(
+    '[data-filter-group="region"][value="north-america"],' +
+    '[data-filter-group="region"][value="latin-america"]'
+  ).forEach(cb => { cb.checked = true; });
+  document.querySelector('[data-filter-group="region"]')
+    ?.dispatchEvent(new Event('change'));
 
   rawTracks = await loadCSV('../data/spotify-tracks.csv');
   const data = transformToSankey(rawTracks, getFilters());
