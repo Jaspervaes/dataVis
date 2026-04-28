@@ -19,9 +19,9 @@ import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { loadCSV, mockSpotifyTracks, mockGlobalCrises } from '../data-loader.js';
 
 const CRISIS_COLORS = {
-  economic:      '#f0a830',  // amber
-  armed_conflict:'#e5321c',  // red
-  pandemic:      '#6aabf0',  // cool blue
+  economic:      '#f0a830',
+  armed_conflict:'#e5321c',
+  pandemic:      '#6aabf0',
 };
 
 const CRISIS_LABELS = {
@@ -29,6 +29,22 @@ const CRISIS_LABELS = {
   armed_conflict:'Armed Conflict',
   pandemic:      'Pandemic',
 };
+
+const FEATURE_COLORS = {
+  valence:      'var(--acid)',
+  energy:       '#fb923c',
+  tempo:        '#a78bfa',
+  danceability: '#34d399',
+};
+
+const FEATURE_LABELS = {
+  valence:      'Valence',
+  energy:       'Energy',
+  tempo:        'Tempo (norm.)',
+  danceability: 'Danceability',
+};
+
+const TEMPO_NORM = 200;
 
 let rawTracks = null;
 let rawCrises = null;
@@ -66,38 +82,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Data preparation ─────────────────────────────────────────
 function prepareData(filters) {
   const [start, end] = filters.decadeRange;
+  const activeFeatures = filters.audioFeatures
+    .filter(f => Object.keys(FEATURE_COLORS).includes(f));
 
-  let series;
+  const seriesByFeature = {};
 
-  if (usingRealValence) {
-    // Pre-aggregated: one row per year, no region breakdown
-    const filtered = rawTracks.filter(t => t.year >= start && t.year <= end);
-    series = filtered.map(d => ({ year: +d.year, valence: +d.valence }))
-      .sort((a, b) => a.year - b.year);
-  } else {
-    // Individual tracks: filter by year + region, then aggregate
-    const filtered = rawTracks.filter(t =>
-      t.year >= start && t.year <= end &&
-      filters.regions.some(r => r.toLowerCase() === t.region.toLowerCase())
-    );
-    const byYear = d3.rollup(filtered, v => d3.mean(v, d => d.valence), d => d.year);
-    series = Array.from(byYear, ([year, valence]) => ({ year, valence }))
-      .sort((a, b) => a.year - b.year);
+  for (const feature of activeFeatures) {
+    let raw;
+
+    if (usingRealValence) {
+      raw = rawTracks
+        .filter(t => +t.year >= start && +t.year <= end)
+        .map(d => {
+          let value = +d[feature];
+          if (feature === 'tempo') value = value / TEMPO_NORM;
+          return { year: +d.year, value };
+        })
+        .sort((a, b) => a.year - b.year);
+    } else {
+      const filtered = rawTracks.filter(t =>
+        t.year >= start && t.year <= end &&
+        filters.regions.some(r => r.toLowerCase() === t.region.toLowerCase())
+      );
+      const byYear = d3.rollup(filtered, v => d3.mean(v, d => {
+        const val = d[feature] || 0;
+        return feature === 'tempo' ? val / TEMPO_NORM : val;
+      }), d => d.year);
+      raw = Array.from(byYear, ([year, value]) => ({ year, value }))
+        .sort((a, b) => a.year - b.year);
+    }
+
+    // Smooth with rolling 3-year average
+    seriesByFeature[feature] = raw.map((d, i) => {
+      const win = raw.slice(Math.max(0, i - 1), i + 2);
+      return { year: d.year, value: d3.mean(win, w => w.value) };
+    });
   }
 
-  // Smooth with rolling 3-year average
-  const smoothed = series.map((d, i) => {
-    const win = series.slice(Math.max(0, i - 1), i + 2);
-    return { year: d.year, valence: d3.mean(win, w => w.valence) };
-  });
-
-  // Filter crises
   const crises = rawCrises.filter(c =>
     filters.crisisTypes.includes(c.crisis_type) &&
     +c.start_year <= end && +c.end_year >= start
   );
 
-  return { series: smoothed, crises };
+  return { seriesByFeature, crises };
 }
 
 // ── Crisis range merger ───────────────────────────────────────
@@ -126,18 +153,27 @@ function mergeCrisisRanges(crises) {
 // ── Render ────────────────────────────────────────────────────
 function render() {
   const filters   = getFilters();
-  const { series, crises } = prepareData(filters);
+  const { seriesByFeature, crises } = prepareData(filters);
   const container = document.getElementById('viz-container');
   if (!container) return;
   container.innerHTML = '';
 
-  if (series.length < 2) {
+  const featureEntries = Object.entries(seriesByFeature);
+  const allPoints = featureEntries.flatMap(([, s]) => s);
+
+  if (allPoints.length < 2) {
     container.innerHTML = `<div class="empty-state">
       <p class="empty-state-title">No data for selected filters</p>
-      <p class="empty-state-desc">Try expanding the decade range or selecting more regions.</p>
+      <p class="empty-state-desc">Try expanding the decade range or selecting more audio features.</p>
     </div>`;
     return;
   }
+
+  // Use valence series as the canonical reference, fall back to first active
+  const primaryFeature = seriesByFeature['valence']
+    ? 'valence'
+    : featureEntries[0][0];
+  const series = seriesByFeature[primaryFeature];
 
   const rect   = container.getBoundingClientRect();
   const width  = rect.width  || 800;
@@ -211,62 +247,76 @@ function render() {
     .attr('text-anchor', 'middle')
     .text('Year');
 
+  const yLabel = featureEntries.length === 1
+    ? `Avg. ${FEATURE_LABELS[featureEntries[0][0]]}${featureEntries[0][0] === 'tempo' ? ' (norm.)' : ' score'}`
+    : 'Audio feature score (0–1)';
+
   g.append('text')
     .attr('class', 'chart-axis-label')
     .attr('transform', 'rotate(-90)')
     .attr('x', -innerH / 2)
     .attr('y', -42)
     .attr('text-anchor', 'middle')
-    .text('Avg. Valence (mood score)');
+    .text(yLabel);
 
-  // ── Area ──────────────────────────────────────────────────
+  // ── Gradient defs (one per active feature) ───────────────
+  const defs = svg.append('defs');
+  featureEntries.forEach(([feature]) => {
+    const grad = defs.append('linearGradient')
+      .attr('id', `gradient-${feature}`)
+      .attr('x1', '0%').attr('y1', '0%')
+      .attr('x2', '0%').attr('y2', '100%');
+    const color = FEATURE_COLORS[feature];
+    grad.append('stop').attr('offset', '0%').attr('stop-color', color).attr('stop-opacity', 0.12);
+    grad.append('stop').attr('offset', '100%').attr('stop-color', color).attr('stop-opacity', 0.01);
+  });
+
+  // ── Area + Line (one per active feature) ─────────────────
   const areaGen = d3.area()
     .x(d => xScale(d.year))
     .y0(innerH)
-    .y1(d => yScale(d.valence))
+    .y1(d => yScale(d.value))
     .curve(d3.curveCatmullRom.alpha(0.5));
 
-  g.append('path')
-    .datum(series)
-    .attr('fill', 'url(#valence-gradient)')
-    .attr('d', areaGen);
-
-  // Gradient fill
-  const defs = svg.append('defs');
-  const grad = defs.append('linearGradient')
-    .attr('id', 'valence-gradient')
-    .attr('x1', '0%').attr('y1', '0%')
-    .attr('x2', '0%').attr('y2', '100%');
-  grad.append('stop').attr('offset', '0%').attr('stop-color', 'var(--acid)').attr('stop-opacity', 0.14);
-  grad.append('stop').attr('offset', '100%').attr('stop-color', 'var(--acid)').attr('stop-opacity', 0.01);
-
-  // ── Line ──────────────────────────────────────────────────
   const lineGen = d3.line()
     .x(d => xScale(d.year))
-    .y(d => yScale(d.valence))
+    .y(d => yScale(d.value))
     .curve(d3.curveCatmullRom.alpha(0.5));
 
-  g.append('path')
-    .datum(series)
-    .attr('fill', 'none')
-    .attr('stroke', 'var(--acid)')
-    .attr('stroke-width', 2.5)
-    .attr('d', lineGen);
+  featureEntries.forEach(([feature, fseries]) => {
+    g.append('path')
+      .datum(fseries)
+      .attr('fill', `url(#gradient-${feature})`)
+      .attr('d', areaGen);
+
+    g.append('path')
+      .datum(fseries)
+      .attr('fill', 'none')
+      .attr('stroke', FEATURE_COLORS[feature])
+      .attr('stroke-width', 2.5)
+      .attr('d', lineGen);
+  });
 
   // ── Interaction: invisible overlay ────────────────────────
   const bisect = d3.bisector(d => d.year).center;
 
   const focusG = g.append('g').attr('class', 'focus').style('display', 'none');
   focusG.append('line')
+    .attr('class', 'focus-line')
     .attr('y1', 0).attr('y2', innerH)
     .attr('stroke', '#475569')
     .attr('stroke-dasharray', '4 3')
     .attr('stroke-width', 1);
-  focusG.append('circle')
-    .attr('r', 5)
-    .attr('fill', 'var(--acid)')
-    .attr('stroke', '#f1f5f9')
-    .attr('stroke-width', 1.5);
+
+  // One dot per active feature
+  featureEntries.forEach(([feature]) => {
+    focusG.append('circle')
+      .attr('class', `focus-dot focus-dot-${feature}`)
+      .attr('r', 5)
+      .attr('fill', FEATURE_COLORS[feature])
+      .attr('stroke', '#f1f5f9')
+      .attr('stroke-width', 1.5);
+  });
 
   g.append('rect')
     .attr('width',  innerW)
@@ -275,18 +325,36 @@ function render() {
     .on('mouseenter', () => focusG.style('display', null))
     .on('mouseleave', () => { focusG.style('display', 'none'); tooltip.hide(); })
     .on('mousemove', function(event) {
-      const [mx]  = d3.pointer(event);
-      const year  = xScale.invert(mx);
-      const idx   = bisect(series, year);
-      const d     = series[idx];
+      const [mx] = d3.pointer(event);
+      const year = xScale.invert(mx);
+      const ref  = seriesByFeature[primaryFeature];
+      const idx  = bisect(ref, year);
+      const d    = ref[idx];
       if (!d) return;
 
-      focusG.attr('transform', `translate(${xScale(d.year)},${yScale(d.valence)})`);
-      focusG.select('line').attr('y1', -yScale(d.valence)).attr('y2', innerH - yScale(d.valence));
+      const x = xScale(d.year);
+      focusG.select('.focus-line')
+        .attr('transform', `translate(${x},0)`);
+
+      featureEntries.forEach(([feature, fseries]) => {
+        const pt = fseries[bisect(fseries, d.year)];
+        if (!pt) return;
+        focusG.select(`.focus-dot-${feature}`)
+          .attr('transform', `translate(${x},${yScale(pt.value)})`);
+      });
+
+      const featureRows = featureEntries.map(([feature, fseries]) => {
+        const pt = fseries[bisect(fseries, d.year)];
+        const raw = pt ? pt.value : null;
+        const display = raw != null
+          ? (feature === 'tempo' ? `${(raw * TEMPO_NORM).toFixed(0)} BPM` : `${(raw * 100).toFixed(1)}%`)
+          : '—';
+        return { label: FEATURE_LABELS[feature], value: display, color: FEATURE_COLORS[feature] };
+      });
 
       const activeCrises = crises.filter(c => d.year >= +c.start_year && d.year <= +c.end_year);
       tooltip.show(event, tooltipHtml(`${d.year}`, [
-        { label: 'Avg. Valence', value: `${(d.valence * 100).toFixed(1)}%`, color: 'var(--acid)' },
+        ...featureRows,
         ...activeCrises.map(c => ({ label: CRISIS_LABELS[c.crisis_type] || 'Crisis', value: c.crisis_name, color: CRISIS_COLORS[c.crisis_type] })),
       ]));
       tooltip.move(event);
@@ -358,7 +426,7 @@ function render() {
   const legendG = g.append('g').attr('transform', `translate(0, ${legendY})`);
 
   const legendItems = [
-    { label: 'Avg. Valence', color: 'var(--acid)', type: 'line' },
+    ...featureEntries.map(([f]) => ({ label: FEATURE_LABELS[f], color: FEATURE_COLORS[f], type: 'line' })),
     ...Object.entries(CRISIS_COLORS).map(([k, c]) => ({ label: CRISIS_LABELS[k], color: c, type: 'rect' })),
   ];
 
@@ -376,21 +444,25 @@ function render() {
       .text(item.label);
   });
 
-  updateInsightCards(series, crises);
+  updateInsightCards(series, primaryFeature, crises);
   updateBadge();
 }
 
 // ── Insight cards ─────────────────────────────────────────────
-function updateInsightCards(series, crises) {
+function updateInsightCards(series, feature, crises) {
   if (!series.length) return;
-  const meanVal = d3.mean(series, d => d.valence);
-  const minPt   = series.reduce((m, d) => d.valence < m.valence ? d : m);
-  const maxPt   = series.reduce((m, d) => d.valence > m.valence ? d : m);
+  const label  = FEATURE_LABELS[feature] || feature;
+  const isTemp = feature === 'tempo';
+  const fmt    = v => isTemp ? `${(v * TEMPO_NORM).toFixed(0)} BPM` : `${(v * 100).toFixed(1)}%`;
 
-  setCard('card-avg-valence', `${(meanVal * 100).toFixed(1)}%`, 'Overall avg. valence');
-  setCard('card-lowest',      `${minPt.year}`,                  `Lowest mood year (${(minPt.valence*100).toFixed(1)}%)`);
-  setCard('card-highest',     `${maxPt.year}`,                  `Highest mood year (${(maxPt.valence*100).toFixed(1)}%)`);
-  setCard('card-crises',      crises.length,                    'Crisis periods overlaid');
+  const meanVal = d3.mean(series, d => d.value);
+  const minPt   = series.reduce((m, d) => d.value < m.value ? d : m);
+  const maxPt   = series.reduce((m, d) => d.value > m.value ? d : m);
+
+  setCard('card-avg-valence', fmt(meanVal),   `Overall avg. ${label}`);
+  setCard('card-lowest',      `${minPt.year}`, `Lowest ${label} year (${fmt(minPt.value)})`);
+  setCard('card-highest',     `${maxPt.year}`, `Highest ${label} year (${fmt(maxPt.value)})`);
+  setCard('card-crises',      crises.length,   'Crisis periods overlaid');
 }
 
 function updateBadge() {
