@@ -816,6 +816,43 @@
 }
 
 /* ══════════════════════════════════════════════════════════════
+   VIZ PAIR — line chart + sidebar map (cultural-flow page)
+══════════════════════════════════════════════════════════════ */
+
+.viz-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--sp-8);
+}
+
+.viz-pair-main,
+.viz-pair-aside {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+#timeline-container,
+#worldmap-container {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+}
+
+#timeline-container .legend {
+  padding: var(--sp-2) 0 0;
+}
+
+@media (max-width: 1024px) {
+  .viz-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════════ */
 

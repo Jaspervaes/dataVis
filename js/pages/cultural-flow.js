@@ -40,6 +40,28 @@ const GENRE_COLORS = {
   'Afrobeats':  '#82d4be',
 };
 
+// Hex equivalents for SVG attribute use (CSS vars are unreliable in
+// stroke/fill attrs across browsers).
+const REGION_HEX = {
+  'Europe':        '#c8f000',
+  'North America': '#e5321c',
+  'Latin America': '#e07840',
+  'Africa':        '#f0a830',
+  'Asia':          '#6aabf0',
+};
+
+const GENRE_HEX = {
+  'Pop':        '#c8f000',
+  'Hip-Hop':    '#e5321c',
+  'Electronic': '#6aabf0',
+  'Latin':      '#f0a830',
+  'R&B':        '#c47fa0',
+  'Afrobeats':  '#82d4be',
+};
+
+const MUTED_FILL    = '#1c1916'; // var(--bg-elevated)
+const BORDER_STROKE = '#252018'; // var(--border)
+
 const SOURCES = ['Europe', 'North America', 'Latin America', 'Africa', 'Asia'];
 
 // Maps region label → sidebar filter key
@@ -128,6 +150,72 @@ const REGION_TO_NODE = {
   UZ:'Asia',MM:'Asia',KH:'Asia',LK:'Asia',
 };
 
+// Maps world-atlas-50m country `properties.name` → region label.
+// Used only by the world map; not all entries appear in the track data.
+const COUNTRY_NAME_TO_REGION = {
+  // Europe
+  'Albania':'Europe','Andorra':'Europe','Austria':'Europe','Belarus':'Europe',
+  'Belgium':'Europe','Bosnia and Herz.':'Europe','Bulgaria':'Europe',
+  'Croatia':'Europe','Cyprus':'Europe','N. Cyprus':'Europe','Czechia':'Europe',
+  'Denmark':'Europe','Estonia':'Europe','Faeroe Is.':'Europe','Finland':'Europe',
+  'France':'Europe','Germany':'Europe','Greece':'Europe','Hungary':'Europe',
+  'Iceland':'Europe','Ireland':'Europe','Isle of Man':'Europe','Italy':'Europe',
+  'Kosovo':'Europe','Latvia':'Europe','Liechtenstein':'Europe','Lithuania':'Europe',
+  'Luxembourg':'Europe','Malta':'Europe','Moldova':'Europe','Monaco':'Europe',
+  'Montenegro':'Europe','Netherlands':'Europe','North Macedonia':'Europe',
+  'Macedonia':'Europe','Norway':'Europe','Poland':'Europe','Portugal':'Europe',
+  'Romania':'Europe','Russia':'Europe','San Marino':'Europe','Serbia':'Europe',
+  'Slovakia':'Europe','Slovenia':'Europe','Spain':'Europe','Sweden':'Europe',
+  'Switzerland':'Europe','Ukraine':'Europe','United Kingdom':'Europe','Vatican':'Europe',
+  // North America
+  'Canada':'North America','United States of America':'North America',
+  'Greenland':'North America','Bermuda':'North America',
+  // Latin America (Spanish/Portuguese-speaking Americas + Caribbean)
+  'Mexico':'Latin America','Belize':'Latin America','Costa Rica':'Latin America',
+  'El Salvador':'Latin America','Guatemala':'Latin America','Honduras':'Latin America',
+  'Nicaragua':'Latin America','Panama':'Latin America','Argentina':'Latin America',
+  'Bolivia':'Latin America','Brazil':'Latin America','Chile':'Latin America',
+  'Colombia':'Latin America','Ecuador':'Latin America','Guyana':'Latin America',
+  'Paraguay':'Latin America','Peru':'Latin America','Suriname':'Latin America',
+  'Uruguay':'Latin America','Venezuela':'Latin America','Falkland Is.':'Latin America',
+  'Bahamas':'Latin America','Cuba':'Latin America','Dominican Rep.':'Latin America',
+  'Haiti':'Latin America','Jamaica':'Latin America','Puerto Rico':'Latin America',
+  'Trinidad and Tobago':'Latin America',
+  // Africa
+  'Algeria':'Africa','Angola':'Africa','Benin':'Africa','Botswana':'Africa',
+  'Burkina Faso':'Africa','Burundi':'Africa','Cabo Verde':'Africa','Cameroon':'Africa',
+  'Central African Rep.':'Africa','Chad':'Africa','Comoros':'Africa','Congo':'Africa',
+  "Côte d'Ivoire":'Africa','Dem. Rep. Congo':'Africa','Djibouti':'Africa',
+  'Egypt':'Africa','Eq. Guinea':'Africa','Eritrea':'Africa','eSwatini':'Africa',
+  'Eswatini':'Africa','Swaziland':'Africa','Ethiopia':'Africa','Gabon':'Africa',
+  'Gambia':'Africa','Ghana':'Africa','Guinea':'Africa','Guinea-Bissau':'Africa',
+  'Kenya':'Africa','Lesotho':'Africa','Liberia':'Africa','Libya':'Africa',
+  'Madagascar':'Africa','Malawi':'Africa','Mali':'Africa','Mauritania':'Africa',
+  'Mauritius':'Africa','Morocco':'Africa','Mozambique':'Africa','Namibia':'Africa',
+  'Niger':'Africa','Nigeria':'Africa','Rwanda':'Africa','Senegal':'Africa',
+  'Sierra Leone':'Africa','Somalia':'Africa','Somaliland':'Africa','South Africa':'Africa',
+  'S. Sudan':'Africa','Sudan':'Africa','Tanzania':'Africa','Togo':'Africa',
+  'Tunisia':'Africa','Uganda':'Africa','W. Sahara':'Africa','Zambia':'Africa',
+  'Zimbabwe':'Africa',
+  // Asia
+  'Afghanistan':'Asia','Armenia':'Asia','Azerbaijan':'Asia','Bahrain':'Asia',
+  'Bangladesh':'Asia','Bhutan':'Asia','Brunei':'Asia','Cambodia':'Asia',
+  'China':'Asia','Georgia':'Asia','Hong Kong':'Asia','India':'Asia','Indonesia':'Asia',
+  'Iran':'Asia','Iraq':'Asia','Israel':'Asia','Japan':'Asia','Jordan':'Asia',
+  'Kazakhstan':'Asia','Kuwait':'Asia','Kyrgyzstan':'Asia','Laos':'Asia',
+  'Lebanon':'Asia','Macao':'Asia','Malaysia':'Asia','Maldives':'Asia',
+  'Mongolia':'Asia','Myanmar':'Asia','Nepal':'Asia','North Korea':'Asia',
+  'Dem. Rep. Korea':'Asia','Oman':'Asia','Pakistan':'Asia','Palestine':'Asia',
+  'Philippines':'Asia','Qatar':'Asia','Saudi Arabia':'Asia','Singapore':'Asia',
+  'South Korea':'Asia','Korea':'Asia','Sri Lanka':'Asia','Syria':'Asia',
+  'Taiwan':'Asia','Tajikistan':'Asia','Thailand':'Asia','Timor-Leste':'Asia',
+  'Turkey':'Asia','Turkmenistan':'Asia','United Arab Emirates':'Asia',
+  'Uzbekistan':'Asia','Vietnam':'Asia','Yemen':'Asia',
+};
+
+// Cached world TopoJSON (loaded once per page).
+let worldFeatures = null;
+
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
@@ -141,17 +229,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     ?.dispatchEvent(new Event('change'));
 
   rawTracks = await loadCSV('../data/spotify-tracks.csv');
-  const data = transformToSankey(rawTracks, getFilters());
-  render(data);
 
-  window.addEventListener('filters:changed', (e) => {
-    render(transformToSankey(rawTracks, e.detail));
-  });
+  // Load world map (TopoJSON) in parallel; failure is non-fatal.
+  loadWorldMap()
+    .then(() => renderWorldMap(getFilters()))
+    .catch(err => console.warn('World map failed to load', err));
 
-  window.addEventListener('resize', () => {
-    render(transformToSankey(rawTracks, getFilters()));
-  });
+  renderAll(getFilters());
+
+  window.addEventListener('filters:changed', (e) => renderAll(e.detail));
+  window.addEventListener('resize', () => renderAll(getFilters()));
 });
+
+function renderAll(filters) {
+  renderTimeline(computeGenreShareSeries(rawTracks, filters));
+  renderWorldMap(filters);
+}
+
+async function loadWorldMap() {
+  if (worldFeatures) return worldFeatures;
+  const topo = await d3.json(
+    'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json'
+  );
+  if (typeof topojson === 'undefined') {
+    throw new Error('topojson-client global is missing');
+  }
+  worldFeatures = topojson.feature(topo, topo.objects.countries);
+  return worldFeatures;
+}
 
 // ── Render ────────────────────────────────────────────────────
 function render(data) {
@@ -308,4 +413,275 @@ function setCard(id, value, extra, trend, desc) {
   const descEl = el.querySelector('.insight-card-desc');
   if (valEl)  valEl.textContent  = value;
   if (descEl) descEl.textContent = desc;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  GENRE SHARE OVER TIME — multi-line chart
+// ══════════════════════════════════════════════════════════════
+
+function computeGenreShareSeries(tracks, filters) {
+  const { decadeRange, regions } = filters;
+  const [startYear, endYear] = decadeRange;
+  const genres = Object.keys(GENRE_HEX);
+
+  const filtered = tracks.filter(t => {
+    const y = +t.year;
+    if (!Number.isFinite(y) || y < startYear || y > endYear) return false;
+    const region = REGION_TO_NODE[t.artist_country];
+    if (!region) return false;
+    const filterKey = REGION_FILTER_KEY[region];
+    if (!regions.includes(filterKey)) return false;
+    return GENRE_HEX[t.genre] != null;
+  });
+
+  if (filtered.length === 0) return { years: [], series: [] };
+
+  const byYearGenre = d3.rollup(
+    filtered,
+    v => v.length,
+    d => +d.year,
+    d => d.genre,
+  );
+
+  const years = d3.range(startYear, endYear + 1);
+  const cum = Object.fromEntries(genres.map(g => [g, 0]));
+  const points = Object.fromEntries(genres.map(g => [g, []]));
+  let firstActive = -1;
+
+  for (const y of years) {
+    const yr = byYearGenre.get(y);
+    if (yr) yr.forEach((c, g) => { if (genres.includes(g)) cum[g] += c; });
+    const total = genres.reduce((s, g) => s + cum[g], 0);
+    if (firstActive < 0 && total > 0) firstActive = y;
+    if (total === 0) {
+      genres.forEach(g => points[g].push({ year: y, share: 0 }));
+    } else {
+      genres.forEach(g => points[g].push({ year: y, share: cum[g] / total }));
+    }
+  }
+
+  if (firstActive < 0) return { years: [], series: [] };
+
+  const trimmedYears = years.filter(y => y >= firstActive);
+  const series = genres.map(g => ({
+    genre:  g,
+    color:  GENRE_HEX[g],
+    points: points[g].filter(p => p.year >= firstActive),
+  }));
+
+  return { years: trimmedYears, series };
+}
+
+function renderTimeline(data) {
+  const container = document.getElementById('timeline-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const { years, series } = data;
+  if (!years.length || !series.length) {
+    container.innerHTML = `<div class="empty-state" style="min-height:280px;">
+      <p class="empty-state-title">No data for current filters</p>
+      <p class="empty-state-desc">Adjust the decade range or regions to see genre shares.</p>
+    </div>`;
+    return;
+  }
+
+  const width  = container.clientWidth || 700;
+  const height = 360;
+  const margin = { top: 20, right: 24, bottom: 44, left: 56 };
+  const innerW = width  - margin.left - margin.right;
+  const innerH = height - margin.top  - margin.bottom;
+
+  const svg = d3.select(container).append('svg')
+    .attr('width',  width)
+    .attr('height', height)
+    .attr('aria-label', 'Cumulative-normalised genre share over time');
+
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const xScale = d3.scaleLinear()
+    .domain(d3.extent(years))
+    .range([0, innerW]);
+
+  const maxShare = d3.max(series, s => d3.max(s.points, p => p.share)) || 0.5;
+  const yMax = Math.min(1, Math.ceil((maxShare + 0.05) * 10) / 10);
+  const yScale = d3.scaleLinear().domain([0, yMax]).range([innerH, 0]);
+
+  // Grid (horizontal lines from y-axis ticks)
+  g.append('g')
+    .attr('class', 'chart-grid')
+    .call(d3.axisLeft(yScale).tickSize(-innerW).tickFormat('').ticks(5))
+    .call(sel => sel.select('.domain').remove())
+    .call(sel => sel.selectAll('text').remove());
+
+  // Axes
+  g.append('g')
+    .attr('class', 'chart-axis')
+    .attr('transform', `translate(0,${innerH})`)
+    .call(d3.axisBottom(xScale)
+      .tickFormat(d3.format('d'))
+      .ticks(Math.min(8, Math.max(2, Math.floor(innerW / 70)))));
+
+  g.append('g')
+    .attr('class', 'chart-axis')
+    .call(d3.axisLeft(yScale).tickFormat(d3.format('.0%')).ticks(5));
+
+  svg.append('text')
+    .attr('class', 'chart-axis-label')
+    .attr('x', margin.left + innerW / 2)
+    .attr('y', height - 8)
+    .attr('text-anchor', 'middle')
+    .text('Year');
+
+  svg.append('text')
+    .attr('class', 'chart-axis-label')
+    .attr('transform', `translate(14,${margin.top + innerH / 2}) rotate(-90)`)
+    .attr('text-anchor', 'middle')
+    .text('Share of releases');
+
+  const lineGen = d3.line()
+    .x(p => xScale(p.year))
+    .y(p => yScale(p.share))
+    .curve(d3.curveMonotoneX);
+
+  const linesG = g.append('g').attr('class', 'lines-group');
+  linesG.selectAll('path')
+    .data(series)
+    .join('path')
+    .attr('fill', 'none')
+    .attr('stroke', d => d.color)
+    .attr('stroke-width', 2)
+    .attr('stroke-linecap', 'round')
+    .attr('stroke-linejoin', 'round')
+    .attr('opacity', 0.95)
+    .attr('d', d => lineGen(d.points));
+
+  // Hover layer: vertical rule, dots, tooltip
+  const focus = g.append('g').style('display', 'none').attr('pointer-events', 'none');
+
+  focus.append('line')
+    .attr('class', 'hover-rule')
+    .attr('y1', 0).attr('y2', innerH)
+    .attr('stroke', '#5a5550')
+    .attr('stroke-width', 1)
+    .attr('stroke-dasharray', '3,3');
+
+  const dots = focus.selectAll('circle')
+    .data(series)
+    .join('circle')
+    .attr('r', 3.5)
+    .attr('fill', d => d.color)
+    .attr('stroke', '#0e0c0a')
+    .attr('stroke-width', 1);
+
+  g.append('rect')
+    .attr('width', innerW)
+    .attr('height', innerH)
+    .attr('fill', 'transparent')
+    .style('cursor', 'crosshair')
+    .on('mouseenter', () => focus.style('display', null))
+    .on('mouseleave', () => { focus.style('display', 'none'); tooltip.hide(); })
+    .on('mousemove', function(event) {
+      const [mx] = d3.pointer(event);
+      const yr = Math.max(years[0], Math.min(years[years.length - 1],
+        Math.round(xScale.invert(mx))));
+      const px = xScale(yr);
+      focus.select('.hover-rule').attr('x1', px).attr('x2', px);
+
+      const valuesAtYear = series.map(s => {
+        const p = s.points.find(pt => pt.year === yr) ?? s.points[s.points.length - 1];
+        return { genre: s.genre, color: s.color, share: p?.share ?? 0, _p: p };
+      });
+
+      dots.attr('cx', px)
+        .attr('cy', s => yScale((valuesAtYear.find(v => v.genre === s.genre)?.share) || 0));
+
+      const sorted = valuesAtYear.slice().sort((a, b) => b.share - a.share);
+      tooltip.show(event, tooltipHtml(`${yr}`, sorted.map(v => ({
+        label: v.genre,
+        value: d3.format('.1%')(v.share),
+        color: v.color,
+      }))));
+    });
+
+  // Legend
+  const legend = d3.select(container).append('div').attr('class', 'legend');
+  series.forEach(s => {
+    const item = legend.append('div').attr('class', 'legend-item');
+    item.append('span')
+      .attr('class', 'legend-line')
+      .style('background', s.color);
+    item.append('span').text(s.genre);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  WORLD MAP — selected regions highlighter
+// ══════════════════════════════════════════════════════════════
+
+function renderWorldMap(filters) {
+  const container = document.getElementById('worldmap-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!worldFeatures) {
+    container.innerHTML = `<div class="empty-state" style="min-height:240px;">
+      <div class="skeleton skeleton-block" style="height:200px;"></div>
+    </div>`;
+    return;
+  }
+
+  const width  = container.clientWidth || 360;
+  const height = Math.max(220, Math.round(width * 0.55));
+
+  const svg = d3.select(container).append('svg')
+    .attr('width',  width)
+    .attr('height', height)
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .attr('aria-label', 'World map highlighting selected regions');
+
+  const projection = d3.geoNaturalEarth1()
+    .fitSize([width - 8, height - 8], worldFeatures);
+  const pathGen = d3.geoPath(projection);
+
+  const selected = new Set(filters.regions);
+
+  const fillFor = name => {
+    const region = COUNTRY_NAME_TO_REGION[name];
+    if (!region) return MUTED_FILL;
+    const key = REGION_FILTER_KEY[region];
+    if (!key || !selected.has(key)) return MUTED_FILL;
+    return REGION_HEX[region] || MUTED_FILL;
+  };
+
+  const opacityFor = name => {
+    const region = COUNTRY_NAME_TO_REGION[name];
+    if (!region) return 0.45;
+    const key = REGION_FILTER_KEY[region];
+    return (key && selected.has(key)) ? 0.85 : 0.35;
+  };
+
+  svg.append('g')
+    .selectAll('path')
+    .data(worldFeatures.features)
+    .join('path')
+    .attr('d', pathGen)
+    .attr('fill', d => fillFor(d.properties.name))
+    .attr('fill-opacity', d => opacityFor(d.properties.name))
+    .attr('stroke', BORDER_STROKE)
+    .attr('stroke-width', 0.4)
+    .style('cursor', 'pointer')
+    .on('mouseenter', function(event, d) {
+      const region = COUNTRY_NAME_TO_REGION[d.properties.name] || '—';
+      d3.select(this).attr('fill-opacity', 1);
+      tooltip.show(event, tooltipHtml(d.properties.name, [
+        { label: 'Region', value: region },
+      ]));
+    })
+    .on('mousemove', e => tooltip.move(e))
+    .on('mouseleave', function(event, d) {
+      d3.select(this).attr('fill-opacity', opacityFor(d.properties.name));
+      tooltip.hide();
+    });
 }
