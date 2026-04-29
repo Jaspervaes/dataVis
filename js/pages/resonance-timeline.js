@@ -103,8 +103,7 @@ function prepareData(filters) {
         .sort((a, b) => a.year - b.year);
     } else {
       const filtered = rawTracks.filter(t =>
-        t.year >= start && t.year <= end &&
-        filters.regions.some(r => r.toLowerCase() === t.region.toLowerCase())
+        t.year >= start && t.year <= end
       );
       const byYear = d3.rollup(filtered, v => d3.mean(v, d => {
         const val = d[feature] || 0;
@@ -121,10 +120,13 @@ function prepareData(filters) {
     });
   }
 
-  const crises = rawCrises.filter(c =>
-    filters.crisisTypes.includes(c.crisis_type) &&
-    +c.start_year <= end && +c.end_year >= start
-  );
+  const crises = rawCrises.filter(c => {
+    if (!filters.crisisTypes.includes(c.crisis_type)) return false;
+    if (+c.start_year > end || +c.end_year < start) return false;
+    if (!c.regions_affected) return true;
+    const crisisRegions = c.regions_affected.split('|').map(r => r.trim().toLowerCase());
+    return filters.regions.some(r => crisisRegions.includes(r.toLowerCase()));
+  });
 
   return { seriesByFeature, crises };
 }
