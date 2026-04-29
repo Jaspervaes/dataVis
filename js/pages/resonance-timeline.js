@@ -44,7 +44,9 @@ const FEATURE_LABELS = {
   danceability: 'Danceability',
 };
 
-const TEMPO_NORM = 200;
+const TEMPO_NORM  = 200;
+const FONT_STACK  = 'Inter, system-ui, sans-serif';
+const CRISIS_PRIORITY = { pandemic: 3, armed_conflict: 2, economic: 1 };
 
 let rawTracks = null;
 let rawCrises = null;
@@ -127,28 +129,6 @@ function prepareData(filters) {
   return { seriesByFeature, crises };
 }
 
-// ── Crisis range merger ───────────────────────────────────────
-// Collapses overlapping/adjacent crises of the same type into
-// continuous bands so the main chart background stays readable.
-function mergeCrisisRanges(crises) {
-  const result = {};
-  for (const type of Object.keys(CRISIS_COLORS)) {
-    const sorted = crises
-      .filter(c => c.crisis_type === type)
-      .map(c => ({ start: +c.start_year, end: +c.end_year }))
-      .sort((a, b) => a.start - b.start);
-    const merged = [];
-    for (const r of sorted) {
-      if (merged.length && r.start <= merged[merged.length - 1].end + 1) {
-        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, r.end);
-      } else {
-        merged.push({ ...r });
-      }
-    }
-    result[type] = merged;
-  }
-  return result;
-}
 
 // ── Render ────────────────────────────────────────────────────
 function render() {
@@ -179,7 +159,7 @@ function render() {
   const width  = rect.width  || 800;
   const height = Math.max(rect.height || 480, 380);
 
-  const margin = { top: 32, right: 24, bottom: 150, left: 56 };
+  const margin = { top: 32, right: 96, bottom: 80, left: 56 };
   const innerW = width  - margin.left - margin.right;
   const innerH = height - margin.top  - margin.bottom;
 
@@ -203,25 +183,7 @@ function render() {
     .range([innerH, 0])
     .nice();
 
-  // ── Crisis background bands (merged per type, no labels) ──
-  // Overlapping crises of the same type are merged into one band
-  // so the chart area stays readable. Opacity is kept very low.
-  const crisisG = g.append('g').attr('class', 'crisis-zones').style('pointer-events', 'none');
   const [filterStart, filterEnd] = filters.decadeRange;
-  const mergedBands = mergeCrisisRanges(crises);
-
-  Object.entries(mergedBands).forEach(([type, bands]) => {
-    const color = CRISIS_COLORS[type] || '#ef4444';
-    bands.forEach(band => {
-      const x1 = xScale(Math.max(band.start, filterStart));
-      const x2 = xScale(Math.min(band.end,   filterEnd));
-      if (x2 <= x1) return;
-      crisisG.append('rect')
-        .attr('x',      x1).attr('y',      0)
-        .attr('width',  x2 - x1).attr('height', innerH)
-        .attr('fill',   color).attr('opacity', 0.06);
-    });
-  });
 
   // ── Grid ──────────────────────────────────────────────────
   g.append('g')
@@ -283,18 +245,47 @@ function render() {
     .y(d => yScale(d.value))
     .curve(d3.curveCatmullRom.alpha(0.5));
 
+  // Areas first (behind lines)
   featureEntries.forEach(([feature, fseries]) => {
     g.append('path')
       .datum(fseries)
       .attr('fill', `url(#gradient-${feature})`)
       .attr('d', areaGen);
+  });
 
+  // Lines on top
+  featureEntries.forEach(([feature, fseries]) => {
     g.append('path')
       .datum(fseries)
       .attr('fill', 'none')
       .attr('stroke', FEATURE_COLORS[feature])
       .attr('stroke-width', 2.5)
       .attr('d', lineGen);
+  });
+
+  // ── Direct line labels (end of each line) ────────────────
+  const labelPositions = featureEntries.map(([feature, fseries]) => {
+    const last = fseries[fseries.length - 1];
+    return { feature, y: yScale(last.value) };
+  }).sort((a, b) => a.y - b.y);
+
+  // Push apart any labels closer than 14px
+  for (let i = 1; i < labelPositions.length; i++) {
+    if (labelPositions[i].y - labelPositions[i - 1].y < 14) {
+      labelPositions[i].y = labelPositions[i - 1].y + 14;
+    }
+  }
+
+  labelPositions.forEach(({ feature, y }) => {
+    g.append('text')
+      .attr('x', innerW + 8)
+      .attr('y', y)
+      .attr('dy', '0.35em')
+      .attr('fill', FEATURE_COLORS[feature])
+      .attr('font-size', 11)
+      .attr('font-family', FONT_STACK)
+      .attr('font-weight', 500)
+      .text(FEATURE_LABELS[feature]);
   });
 
   // ── Interaction: invisible overlay ────────────────────────
@@ -360,88 +351,39 @@ function render() {
       tooltip.move(event);
     });
 
-  // ── Crisis lanes (detail strip below x-axis) ─────────────
-  const LANE_H      = 14;
-  const LANE_GAP    = 5;
-  const LANE_TOP    = innerH + 54;   // px below the chart top (within g)
-  const LANE_ORDER  = ['economic', 'armed_conflict', 'pandemic'];
-  const FONT_STACK  = 'Inter, system-ui, sans-serif';
+  // ── Single unified crisis strip ───────────────────────────
+  const STRIP_Y = innerH + 56;
+  const STRIP_H = 10;
 
-  const lanesG = g.append('g').attr('class', 'crisis-lanes');
+  const stripG = g.append('g').attr('class', 'crisis-strip');
 
-  LANE_ORDER.forEach((type, i) => {
-    const laneY = LANE_TOP + i * (LANE_H + LANE_GAP);
-    const color = CRISIS_COLORS[type];
+  // Faint track background
+  stripG.append('rect')
+    .attr('x', 0).attr('y', STRIP_Y)
+    .attr('width', innerW).attr('height', STRIP_H)
+    .attr('fill', 'rgba(255,255,255,0.04)').attr('rx', 2);
 
-    // Track background
-    lanesG.append('rect')
-      .attr('x', 0).attr('y', laneY)
-      .attr('width', innerW).attr('height', LANE_H)
-      .attr('fill', 'rgba(255,255,255,0.04)').attr('rx', 2);
+  // Draw crises lowest-priority first so higher-priority sit on top
+  const sortedCrises = [...crises].sort(
+    (a, b) => (CRISIS_PRIORITY[a.crisis_type] || 0) - (CRISIS_PRIORITY[b.crisis_type] || 0)
+  );
 
-    // Type label on left margin
-    lanesG.append('text')
-      .attr('x', -6).attr('y', laneY + LANE_H / 2 + 4)
-      .attr('text-anchor', 'end')
-      .attr('font-size', 8).attr('font-family', FONT_STACK)
-      .attr('fill', color)
-      .text(CRISIS_LABELS[type].toUpperCase());
+  sortedCrises.forEach(crisis => {
+    const x1 = xScale(Math.max(+crisis.start_year, filterStart));
+    const x2 = xScale(Math.min(+crisis.end_year,   filterEnd));
+    if (x2 <= x1) return;
 
-    // Individual crisis segments
-    crises.filter(c => c.crisis_type === type).forEach(crisis => {
-      const x1   = xScale(Math.max(+crisis.start_year, filterStart));
-      const x2   = xScale(Math.min(+crisis.end_year,   filterEnd));
-      if (x2 <= x1) return;
-      const segW = x2 - x1;
-
-      lanesG.append('rect')
-        .attr('x', x1).attr('y', laneY)
-        .attr('width', segW).attr('height', LANE_H)
-        .attr('fill', color).attr('opacity', 0.78).attr('rx', 2)
-        .on('mouseenter', (event) => {
-          tooltip.show(event, tooltipHtml(crisis.crisis_name, [
-            { label: 'Type',     value: CRISIS_LABELS[type] },
-            { label: 'Period',   value: `${crisis.start_year}–${crisis.end_year}` },
-            { label: 'Severity', value: '★'.repeat(Math.min(+crisis.severity || 3, 5)) },
-          ]));
-        })
-        .on('mousemove',  (event) => tooltip.move(event))
-        .on('mouseleave', ()      => tooltip.hide());
-
-      if (segW > 38) {
-        const name = crisis.crisis_name;
-        const label = segW > 75 ? name : (name.length > 10 ? name.slice(0, 9) + '…' : name);
-        lanesG.append('text')
-          .attr('x', x1 + segW / 2).attr('y', laneY + LANE_H / 2 + 4)
-          .attr('text-anchor', 'middle')
-          .attr('font-size', 7.5).attr('font-family', FONT_STACK)
-          .attr('fill', '#fff').style('pointer-events', 'none')
-          .text(label);
-      }
-    });
-  });
-
-  // ── Legend ────────────────────────────────────────────────
-  const legendY = LANE_TOP + LANE_ORDER.length * (LANE_H + LANE_GAP) + 14;
-  const legendG = g.append('g').attr('transform', `translate(0, ${legendY})`);
-
-  const legendItems = [
-    ...featureEntries.map(([f]) => ({ label: FEATURE_LABELS[f], color: FEATURE_COLORS[f], type: 'line' })),
-    ...Object.entries(CRISIS_COLORS).map(([k, c]) => ({ label: CRISIS_LABELS[k], color: c, type: 'rect' })),
-  ];
-
-  legendItems.forEach((item, i) => {
-    const lx = i * 130;
-    if (item.type === 'line') {
-      legendG.append('line').attr('x1', lx).attr('x2', lx + 18).attr('y1', 0).attr('y2', 0)
-        .attr('stroke', item.color).attr('stroke-width', 2.5);
-    } else {
-      legendG.append('rect').attr('x', lx).attr('y', -6).attr('width', 10).attr('height', 10)
-        .attr('fill', item.color).attr('opacity', 0.75).attr('rx', 2);
-    }
-    legendG.append('text').attr('x', lx + 18).attr('y', 4)
-      .attr('fill', '#94a3b8').attr('font-size', 10).attr('font-family', FONT_STACK)
-      .text(item.label);
+    stripG.append('rect')
+      .attr('x', x1).attr('y', STRIP_Y)
+      .attr('width', x2 - x1).attr('height', STRIP_H)
+      .attr('fill', CRISIS_COLORS[crisis.crisis_type])
+      .attr('opacity', 0.8).attr('rx', 2)
+      .on('mouseenter', event => tooltip.show(event, tooltipHtml(crisis.crisis_name, [
+        { label: 'Type',   value: CRISIS_LABELS[crisis.crisis_type] },
+        { label: 'Period', value: `${crisis.start_year}–${crisis.end_year}` },
+      ])))
+      .on('mousemove',  event => tooltip.move(event))
+      .on('mouseleave', ()    => tooltip.hide());
   });
 
   updateInsightCards(series, primaryFeature, crises);

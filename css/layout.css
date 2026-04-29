@@ -256,6 +256,14 @@
   flex-shrink: 0;
 }
 
+.filter-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* Range group — fader style */
 .range-group {
   display: flex;
