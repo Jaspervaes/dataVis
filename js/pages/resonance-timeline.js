@@ -40,7 +40,7 @@ const FEATURE_COLORS = {
 const FEATURE_LABELS = {
   valence:      'Valence',
   energy:       'Energy',
-  tempo:        'Tempo (norm.)',
+  tempo:        'Tempo',
   danceability: 'Danceability',
 };
 
@@ -82,6 +82,8 @@ let rawCrises = null;
 let usingRealCrises  = false;
 let usingRealValence = false;
 let usingRegionData  = false; // true when merged + artist-country join succeeded
+let pinnedYear      = null;   // null = no insight box; otherwise the focused year
+let regionFeature   = null;   // which audio feature drives the regional column
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -289,7 +291,7 @@ function render() {
     .text('Year');
 
   const yLabel = featureEntries.length === 1
-    ? `Avg. ${FEATURE_LABELS[featureEntries[0][0]]}${featureEntries[0][0] === 'tempo' ? ' (norm.)' : ' score'}`
+    ? `Avg. ${FEATURE_LABELS[featureEntries[0][0]]}${featureEntries[0][0] === 'tempo' ? ' (BPM ÷ 200)' : ' score'}`
     : 'Audio feature score (0–1)';
 
   g.append('text')
@@ -388,12 +390,30 @@ function render() {
       .attr('stroke-width', 1.5);
   });
 
+  // Pinned-year vertical marker (separate from the hover focus line)
+  if (pinnedYear != null && pinnedYear >= filterStart && pinnedYear <= filterEnd) {
+    g.append('line')
+      .attr('class', 'pinned-line')
+      .attr('x1', xScale(pinnedYear)).attr('x2', xScale(pinnedYear))
+      .attr('y1', 0).attr('y2', innerH)
+      .attr('stroke', '#c8f000')
+      .attr('stroke-width', 1.5)
+      .attr('opacity', 0.8);
+  }
+
   g.append('rect')
     .attr('width',  innerW)
     .attr('height', innerH)
     .attr('fill',   'transparent')
+    .style('cursor', 'pointer')
     .on('mouseenter', () => focusG.style('display', null))
     .on('mouseleave', () => { focusG.style('display', 'none'); tooltip.hide(); })
+    .on('click', function(event) {
+      const [mx] = d3.pointer(event);
+      const yr = Math.round(xScale.invert(mx));
+      pinnedYear = (pinnedYear === yr) ? null : yr;
+      render();
+    })
     .on('mousemove', function(event) {
       const [mx] = d3.pointer(event);
       const year = xScale.invert(mx);
@@ -466,7 +486,230 @@ function render() {
   });
 
   updateInsightCards(series, primaryFeature, crises);
+  updateInsightBox(seriesByFeature, crises, filters, primaryFeature);
   updateBadge();
+}
+
+// ── Insight box (year-detail panel) ───────────────────────────
+function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
+  const box = document.getElementById('insight-box');
+  if (!box) return;
+
+  // ── Empty state ───────────────────────────────────────────
+  if (pinnedYear == null) {
+    box.classList.add('is-empty');
+    box.innerHTML = `
+      <div class="insight-box-cta">
+        <span class="insight-box-cta-arrow" aria-hidden="true">↑</span>
+        <span class="insight-box-cta-text">
+          <strong>Click any year on the timeline above</strong> to pin a year-detail card here.
+        </span>
+      </div>`;
+    return;
+  }
+
+  // ── Populated state: rebuild skeleton if needed, then render ──
+  box.classList.remove('is-empty');
+  if (!document.getElementById('insight-year')) {
+    box.innerHTML = `
+      <header class="insight-box-header">
+        <h2 class="insight-box-title" id="insight-year">—</h2>
+        <p class="insight-box-hint">Click again to unpin · click another year to switch.</p>
+      </header>
+      <div class="insight-box-grid">
+        <div class="insight-box-col" id="insight-delta">
+          <p class="insight-box-sub" id="insight-delta-sub">VS. BASELINE</p>
+          <div class="insight-box-rows" id="insight-delta-rows"></div>
+          <div class="insight-box-crises" id="insight-delta-crises"></div>
+        </div>
+        <div class="insight-box-col" id="insight-region">
+          <p class="insight-box-sub" id="insight-region-sub">BY REGION</p>
+          <div class="insight-box-tabs" id="insight-region-tabs" role="tablist"></div>
+          <div class="insight-box-bars" id="insight-region-bars"></div>
+          <div class="insight-box-foot" id="insight-region-foot"></div>
+        </div>
+      </div>`;
+  }
+
+  const titleEl       = document.getElementById('insight-year');
+  const deltaSubEl    = document.getElementById('insight-delta-sub');
+  const deltaRowsEl   = document.getElementById('insight-delta-rows');
+  const deltaCrisesEl = document.getElementById('insight-delta-crises');
+  const regionSubEl   = document.getElementById('insight-region-sub');
+  const regionBarsEl  = document.getElementById('insight-region-bars');
+  const regionFootEl  = document.getElementById('insight-region-foot');
+
+  const year = pinnedYear;
+  titleEl.textContent = year;
+
+  // ── Crisis-delta column ───────────────────────────────────
+  // Baseline = the 3 years immediately preceding the selected year,
+  // clamped to whatever data the active features have available.
+  const baselineYears = [year - 3, year - 2, year - 1];
+  deltaSubEl.textContent = `VS. ${year - 3}–${year - 1} BASELINE`;
+
+  const featureEntries = Object.entries(seriesByFeature);
+  const rowsHtml = featureEntries.map(([feature, fseries]) => {
+    const pt = fseries.find(p => p.year === year);
+    const baselinePts = fseries.filter(p => baselineYears.includes(p.year));
+    const baseline = baselinePts.length ? d3.mean(baselinePts, p => p.value) : null;
+    const isTempo = feature === 'tempo';
+
+    const valueText = pt
+      ? (isTempo ? `${(pt.value * TEMPO_NORM).toFixed(0)} BPM` : `${(pt.value * 100).toFixed(1)}%`)
+      : '—';
+
+    let deltaText = '—';
+    let deltaCls  = 'flat';
+    if (pt && baseline != null) {
+      const diffPts = (pt.value - baseline) * 100;          // valence/energy/dance: percentage points
+      const diffBpm = (pt.value - baseline) * TEMPO_NORM;   // tempo: BPM
+      const shown   = isTempo ? diffBpm : diffPts;
+      const unit    = isTempo ? ' BPM' : ' pts';
+      const arrow   = Math.abs(shown) < 0.5 ? '▬' : (shown > 0 ? '▲' : '▼');
+      deltaCls      = Math.abs(shown) < 0.5 ? 'flat' : (shown > 0 ? 'up' : 'down');
+      deltaText     = `${arrow} ${Math.abs(shown).toFixed(1)}${unit}`;
+    }
+
+    return `
+      <div class="insight-row">
+        <span class="insight-row-label" style="color:${FEATURE_COLORS[feature]}">${FEATURE_LABELS[feature]}</span>
+        <span class="insight-row-value">${valueText}</span>
+        <span class="insight-row-delta ${deltaCls}">${deltaText}</span>
+      </div>`;
+  }).join('');
+  deltaRowsEl.innerHTML = rowsHtml || '<p class="insight-empty">No active features.</p>';
+
+  // Active crises overlapping the selected year, respecting current filter.
+  const activeCrises = crises.filter(c => year >= +c.start_year && year <= +c.end_year);
+  deltaCrisesEl.innerHTML = activeCrises.length
+    ? activeCrises.map(c => `
+        <span class="insight-crisis-pill" style="color:${CRISIS_COLORS[c.crisis_type]}">
+          <span class="insight-crisis-dot" style="background:${CRISIS_COLORS[c.crisis_type]}"></span>
+          ${c.crisis_name}
+        </span>`).join('')
+    : '<span class="insight-empty">No crises active in this year.</span>';
+
+  // ── Regional split column ─────────────────────────────────
+  if (!usingRegionData) {
+    regionSubEl.textContent = 'BY REGION';
+    regionBarsEl.innerHTML  = '<p class="insight-empty">Region data not loaded yet. Run data/fetch_artist_countries.py to enable.</p>';
+    regionFootEl.innerHTML  = '';
+    return;
+  }
+
+  // Active audio features = those currently enabled in the sidebar.
+  const activeFeatures = filters.audioFeatures
+    .filter(f => Object.keys(FEATURE_COLORS).includes(f));
+
+  // Resolve the active region feature. Fall back to primary when the
+  // current selection is no longer enabled (e.g. user just unchecked it).
+  if (!activeFeatures.includes(regionFeature)) {
+    regionFeature = activeFeatures.includes(primaryFeature)
+      ? primaryFeature
+      : activeFeatures[0] || null;
+  }
+  const featureForRegion = regionFeature;
+
+  if (!featureForRegion) {
+    regionSubEl.textContent = 'BY REGION';
+    document.getElementById('insight-region-tabs').innerHTML = '';
+    regionBarsEl.innerHTML = '<p class="insight-empty">Enable an audio feature in the sidebar.</p>';
+    regionFootEl.innerHTML = '';
+    return;
+  }
+
+  const featureLabel = FEATURE_LABELS[featureForRegion] || featureForRegion;
+  const isTempo      = featureForRegion === 'tempo';
+  regionSubEl.textContent = `${featureLabel.toUpperCase()} BY REGION`;
+
+  // Render the segmented tabs (one per active audio feature).
+  const tabsEl = document.getElementById('insight-region-tabs');
+  tabsEl.innerHTML = activeFeatures.map(f => {
+    const isActive = f === featureForRegion;
+    return `
+      <button type="button"
+              class="insight-tab${isActive ? ' is-active' : ''}"
+              data-feature="${f}"
+              role="tab"
+              aria-selected="${isActive}"
+              style="--tab-color:${FEATURE_COLORS[f]}">
+        ${FEATURE_LABELS[f]}
+      </button>`;
+  }).join('');
+  tabsEl.querySelectorAll('button[data-feature]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      regionFeature = btn.dataset.feature;
+      render();
+    });
+  });
+
+  const regionsSelected = filters.regions;
+  const regionStats = regionsSelected.map(region => {
+    const tracks = rawMergedTracks.filter(t => t.region === region && +t.year === year);
+    const valid  = tracks.filter(t => Number.isFinite(+t[featureForRegion]));
+    if (!valid.length) return { region, value: null, count: 0 };
+    const mean = d3.mean(valid, t => {
+      const v = +t[featureForRegion];
+      return isTempo ? v / TEMPO_NORM : v;
+    });
+    return { region, value: mean, count: valid.length };
+  });
+
+  // All selected regions are absent → keep box visible but no footer.
+  const anyData = regionStats.some(s => s.value != null);
+  if (!anyData) {
+    regionBarsEl.innerHTML = `<p class="insight-empty">No tracks for ${year} in the selected regions.</p>`;
+    regionFootEl.innerHTML = '';
+    return;
+  }
+
+  const REGION_COLORS = {
+    europe:   '#c8f000',
+    americas: '#e5321c',
+    africa:   '#f0a830',
+    asia:     '#6aabf0',
+    oceania:  '#82d4be',
+  };
+  const REGION_LABELS = {
+    europe:'Europe', americas:'Americas', africa:'Africa', asia:'Asia', oceania:'Oceania',
+  };
+
+  const fmtVal = v => isTempo ? `${(v * TEMPO_NORM).toFixed(0)} BPM` : `${(v * 100).toFixed(1)}%`;
+
+  regionBarsEl.innerHTML = regionStats.map(s => {
+    if (s.value == null) {
+      return `
+        <div class="insight-bar-row is-empty" title="No tracks attributed to this region for ${year}">
+          <span class="insight-bar-label">${REGION_LABELS[s.region]}</span>
+          <span class="insight-bar-track">
+            <span class="insight-bar-fill" style="width:0%"></span>
+          </span>
+          <span class="insight-bar-value"><span class="insight-na-tag">no data</span></span>
+        </div>`;
+    }
+    const pct = Math.max(0, Math.min(1, s.value)) * 100;
+    return `
+      <div class="insight-bar-row">
+        <span class="insight-bar-label">${REGION_LABELS[s.region]}</span>
+        <span class="insight-bar-track">
+          <span class="insight-bar-fill" style="width:${pct.toFixed(1)}%;background:${REGION_COLORS[s.region]}"></span>
+        </span>
+        <span class="insight-bar-value">${fmtVal(s.value)}</span>
+      </div>`;
+  }).join('');
+
+  const present = regionStats.filter(s => s.value != null);
+  const sorted  = [...present].sort((a, b) => b.value - a.value);
+  const spread  = sorted[0].value - sorted[sorted.length - 1].value;
+  const spreadTxt = isTempo
+    ? `${(spread * TEMPO_NORM).toFixed(1)} BPM`
+    : `${(spread * 100).toFixed(1)} pts`;
+
+  regionFootEl.innerHTML = `
+    <span><span class="insight-foot-label">Spread</span><span class="insight-foot-value">${spreadTxt}</span></span>
+    <span><span class="insight-foot-label">Highest</span><span class="insight-foot-value">${REGION_LABELS[sorted[0].region]}</span></span>
+  `;
 }
 
 // ── Insight cards ─────────────────────────────────────────────

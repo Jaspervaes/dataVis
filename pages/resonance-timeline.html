@@ -71,6 +71,24 @@
           <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="valence"      checked /><span class="filter-swatch" style="background:var(--acid)"></span> Valence</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="tempo"        checked /><span class="filter-swatch" style="background:#a78bfa"></span> Tempo</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="danceability" checked /><span class="filter-swatch" style="background:#34d399"></span> Danceability</label>
+
+          <details class="filter-help">
+            <summary>What do these mean?</summary>
+            <dl class="filter-help-list">
+              <dt><span class="filter-swatch" style="background:#fb923c"></span> Energy</dt>
+              <dd>Perceived intensity and activity. Loud, fast, noisy tracks (death metal) score high; quiet, slow tracks (a Bach prelude) score low. 0–100%.</dd>
+
+              <dt><span class="filter-swatch" style="background:var(--acid)"></span> Valence</dt>
+              <dd>Musical positivity. High valence sounds happy or euphoric; low valence sounds sad, angry, or tense. 0–100%.</dd>
+
+              <dt><span class="filter-swatch" style="background:#a78bfa"></span> Tempo</dt>
+              <dd>Estimated speed of the track in beats per minute (BPM). Charted as a 0–200 BPM normalised value.</dd>
+
+              <dt><span class="filter-swatch" style="background:#34d399"></span> Danceability</dt>
+              <dd>How suitable the track is for dancing — based on rhythm stability, beat strength, and regularity. 0–100%.</dd>
+            </dl>
+            <p class="filter-help-source">Source: Spotify audio features.</p>
+          </details>
         </div>
 
         <div class="filter-group" role="group" aria-labelledby="lbl-crisis">
@@ -119,6 +137,25 @@
         </div>
         <span class="viz-sample-badge">Sample Data</span>
       </div>
+
+      <section class="insight-box" id="insight-box" aria-live="polite">
+        <header class="insight-box-header">
+          <h2 class="insight-box-title" id="insight-year">—</h2>
+          <p class="insight-box-hint">Click a year on the timeline to pin the insight.</p>
+        </header>
+        <div class="insight-box-grid">
+          <div class="insight-box-col" id="insight-delta">
+            <p class="insight-box-sub" id="insight-delta-sub">VS. BASELINE</p>
+            <div class="insight-box-rows" id="insight-delta-rows"></div>
+            <div class="insight-box-crises" id="insight-delta-crises"></div>
+          </div>
+          <div class="insight-box-col" id="insight-region">
+            <p class="insight-box-sub" id="insight-region-sub">BY REGION</p>
+            <div class="insight-box-bars" id="insight-region-bars"></div>
+            <div class="insight-box-foot" id="insight-region-foot"></div>
+          </div>
+        </div>
+      </section>
 
 
     </main>
