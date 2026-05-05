@@ -398,7 +398,7 @@ function render() {
       .attr('class', 'pinned-line')
       .attr('x1', xScale(pinnedYear)).attr('x2', xScale(pinnedYear))
       .attr('y1', 0).attr('y2', innerH)
-      .attr('stroke', '#c8f000')
+      .attr('stroke', 'var(--acid)')
       .attr('stroke-width', 1.5)
       .attr('opacity', 0.8);
   }
