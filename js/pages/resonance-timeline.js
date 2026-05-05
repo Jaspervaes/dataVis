@@ -48,22 +48,78 @@ const TEMPO_NORM  = 200;
 const FONT_STACK  = 'Inter, system-ui, sans-serif';
 const CRISIS_PRIORITY = { pandemic: 3, armed_conflict: 2, economic: 1 };
 
-let rawTracks = null;
+// ISO-2 country → sidebar region key. Mirrors COUNTRY_TO_REGION in
+// data/fetch_musicbrainz.py but flattens the Americas (the sidebar
+// here uses europe/americas/africa/asia/oceania, not the split scheme).
+const COUNTRY_TO_REGION = {
+  GB:'europe',DE:'europe',FR:'europe',SE:'europe',NO:'europe',NL:'europe',
+  BE:'europe',IT:'europe',ES:'europe',PT:'europe',DK:'europe',FI:'europe',
+  PL:'europe',RU:'europe',UA:'europe',IE:'europe',CH:'europe',AT:'europe',
+  HU:'europe',CZ:'europe',RO:'europe',GR:'europe',RS:'europe',HR:'europe',
+  IS:'europe',LU:'europe',SK:'europe',SI:'europe',LV:'europe',LT:'europe',
+  EE:'europe',BA:'europe',MK:'europe',ME:'europe',AL:'europe',BG:'europe',
+  CY:'europe',MT:'europe',MD:'europe',BY:'europe',
+  US:'americas',CA:'americas',MX:'americas',BR:'americas',CO:'americas',
+  AR:'americas',CL:'americas',PE:'americas',VE:'americas',CU:'americas',
+  JM:'americas',TT:'americas',DO:'americas',PA:'americas',EC:'americas',
+  BO:'americas',UY:'americas',PY:'americas',GT:'americas',HN:'americas',
+  CR:'americas',SV:'americas',NI:'americas',HT:'americas',
+  NG:'africa',ZA:'africa',GH:'africa',KE:'africa',SN:'africa',CM:'africa',
+  TZ:'africa',UG:'africa',ET:'africa',EG:'africa',MA:'africa',TN:'africa',
+  CI:'africa',ML:'africa',CD:'africa',AO:'africa',MZ:'africa',ZW:'africa',
+  BW:'africa',ZM:'africa',RW:'africa',BJ:'africa',TG:'africa',BF:'africa',
+  MW:'africa',DZ:'africa',LY:'africa',
+  JP:'asia',KR:'asia',CN:'asia',IN:'asia',ID:'asia',PH:'asia',TH:'asia',
+  VN:'asia',MY:'asia',SG:'asia',PK:'asia',BD:'asia',IR:'asia',TR:'asia',
+  SA:'asia',AE:'asia',LB:'asia',IL:'asia',IQ:'asia',SY:'asia',KZ:'asia',
+  UZ:'asia',MM:'asia',KH:'asia',LK:'asia',HK:'asia',TW:'asia',
+  AU:'oceania',NZ:'oceania',FJ:'oceania',PG:'oceania',
+};
+
+let rawTracks       = null;   // pre-aggregated valence-by-year rows (fallback path)
+let rawMergedTracks = null;   // datos_merged rows tagged with .region (region path)
 let rawCrises = null;
 let usingRealCrises  = false;
 let usingRealValence = false;
+let usingRegionData  = false; // true when merged + artist-country join succeeded
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
 
-  // ── Valence data ──────────────────────────────────────────
-  const byYear = await loadCSV('../data/valence-by-year.csv').catch(() => null);
-  if (byYear && byYear.length) {
-    rawTracks = byYear;
-    usingRealValence = true;
-  } else {
-    rawTracks = mockSpotifyTracks(300);
+  // ── Region-aware data path ───────────────────────────────
+  // If both the source CSV and artist→country lookup load, we can
+  // attach a region to each track and apply the sidebar Region filter
+  // to the audio-feature curves. Otherwise fall back to the
+  // pre-aggregated valence-by-year file (no per-region breakdown).
+  const [merged, artistCountries] = await Promise.all([
+    loadCSV('../data/datos_merged_1986_2023.csv').catch(() => null),
+    loadCSV('../data/artist-countries.csv').catch(() => null),
+  ]);
+
+  if (merged && merged.length && artistCountries && artistCountries.length) {
+    const artistToRegion = new Map();
+    for (const row of artistCountries) {
+      const region = COUNTRY_TO_REGION[row.country];
+      if (region) artistToRegion.set(row.artist_name, region);
+    }
+    rawMergedTracks = merged
+      .map(t => ({ ...t, region: artistToRegion.get(t.principal_artist_name) || null }))
+      .filter(t => t.region && t.year != null && Number.isFinite(+t.year));
+    if (rawMergedTracks.length) {
+      usingRegionData  = true;
+      usingRealValence = true;
+    }
+  }
+
+  if (!usingRegionData) {
+    const byYear = await loadCSV('../data/valence-by-year.csv').catch(() => null);
+    if (byYear && byYear.length) {
+      rawTracks = byYear;
+      usingRealValence = true;
+    } else {
+      rawTracks = mockSpotifyTracks(300);
+    }
   }
 
   // ── Crisis data (real) ────────────────────────────────────
@@ -89,10 +145,31 @@ function prepareData(filters) {
 
   const seriesByFeature = {};
 
+  // Pre-filter merged tracks once per render (shared across all features).
+  let mergedScope = null;
+  if (usingRegionData) {
+    const regionSet = new Set(filters.regions);
+    mergedScope = rawMergedTracks.filter(t => {
+      const y = +t.year;
+      return y >= start && y <= end && regionSet.has(t.region);
+    });
+  }
+
   for (const feature of activeFeatures) {
     let raw;
 
-    if (usingRealValence) {
+    if (usingRegionData) {
+      const byYear = d3.rollup(
+        mergedScope.filter(d => Number.isFinite(+d[feature])),
+        v => d3.mean(v, d => {
+          const val = +d[feature];
+          return feature === 'tempo' ? val / TEMPO_NORM : val;
+        }),
+        d => +d.year
+      );
+      raw = Array.from(byYear, ([year, value]) => ({ year, value }))
+        .sort((a, b) => a.year - b.year);
+    } else if (usingRealValence) {
       raw = rawTracks
         .filter(t => +t.year >= start && +t.year <= end)
         .map(d => {
