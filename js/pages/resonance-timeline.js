@@ -63,7 +63,9 @@ const COUNTRY_TO_REGION = {
   AR:'americas',CL:'americas',PE:'americas',VE:'americas',CU:'americas',
   JM:'americas',TT:'americas',DO:'americas',PA:'americas',EC:'americas',
   BO:'americas',UY:'americas',PY:'americas',GT:'americas',HN:'americas',
-  CR:'americas',SV:'americas',NI:'americas',HT:'americas',
+  CR:'americas',SV:'americas',NI:'americas',HT:'americas',PR:'americas',
+  BS:'americas',BB:'americas',GY:'americas',VC:'americas',VG:'americas',
+  VI:'americas',
   NG:'africa',ZA:'africa',GH:'africa',KE:'africa',SN:'africa',CM:'africa',
   TZ:'africa',UG:'africa',ET:'africa',EG:'africa',MA:'africa',TN:'africa',
   CI:'africa',ML:'africa',CD:'africa',AO:'africa',MZ:'africa',ZW:'africa',
@@ -72,7 +74,7 @@ const COUNTRY_TO_REGION = {
   JP:'asia',KR:'asia',CN:'asia',IN:'asia',ID:'asia',PH:'asia',TH:'asia',
   VN:'asia',MY:'asia',SG:'asia',PK:'asia',BD:'asia',IR:'asia',TR:'asia',
   SA:'asia',AE:'asia',LB:'asia',IL:'asia',IQ:'asia',SY:'asia',KZ:'asia',
-  UZ:'asia',MM:'asia',KH:'asia',LK:'asia',HK:'asia',TW:'asia',
+  UZ:'asia',MM:'asia',KH:'asia',LK:'asia',HK:'asia',TW:'asia',AM:'asia',
   AU:'oceania',NZ:'oceania',FJ:'oceania',PG:'oceania',
 };
 
