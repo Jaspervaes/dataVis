@@ -649,7 +649,7 @@
   color: var(--text-primary);
   pointer-events: none;
   box-shadow: var(--shadow-md);
-  max-width: 220px;
+  max-width: 260px;
   opacity: 0;
   transition: opacity var(--t-fast);
   border-radius: 0;
@@ -673,6 +673,7 @@
 
 .tooltip-row {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-4);
   font-family: var(--font-mono);
@@ -681,9 +682,16 @@
   line-height: var(--leading-snug);
 }
 
+.tooltip-row > span:first-child {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .tooltip-value {
   font-weight: var(--weight-medium);
   color: var(--text-primary);
+  text-align: right;
+  min-width: 0;
 }
 
 /* ══════════════════════════════════════════════════════════════
