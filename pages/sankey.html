@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Page 3 — The Roots of Rhythm</title>
+  <title>Sankey Diagram — The Roots of Rhythm</title>
+  <meta name="description" content="Sankey diagram: genre flows between continents." />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
 
   <link rel="stylesheet" href="../css/variables.css" />
@@ -13,6 +14,8 @@
 
   <script src="../js/theme-toggle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 </head>
 <body>
 
@@ -28,9 +31,9 @@
     <ul class="nav-links" role="list">
       <li><a href="cultural-flow.html"      class="nav-link">Cultural Flow</a></li>
       <li><a href="resonance-timeline.html" class="nav-link">Resonance Timeline</a></li>
-      <li><a href="genre-forecast.html"     class="nav-link active" aria-current="page">Page 3</a></li>
+      <li><a href="genre-forecast.html"     class="nav-link">Page 3</a></li>
       <li><a href="network-map.html"        class="nav-link">Page 4</a></li>
-      <li><a href="sankey.html"             class="nav-link">Sankey</a></li>
+      <li><a href="sankey.html"             class="nav-link active " aria-current="page">Sankey</a></li>
     </ul>
 
     <button class="theme-toggle" aria-label="Toggle light/dark theme" title="Toggle Theme">
@@ -65,7 +68,7 @@
           <div class="range-track-labels"><span>1986</span><span>2025</span></div>
         </div>
 
-        <div class="filter-group" role="group" aria-labelledby="lbl-region">
+<div class="filter-group" role="group" aria-labelledby="lbl-region">
           <span class="filter-group-label" id="lbl-region">Region</span>
           <label class="filter-item"><input type="checkbox" data-filter-group="region" value="europe"        checked /> Europe</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="region" value="north-america" checked /> North America</label>
@@ -88,25 +91,72 @@
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <a href="../index.html" class="breadcrumb-link">Home</a>
         <span class="breadcrumb-sep" aria-hidden="true">/</span>
-        <span class="breadcrumb-current" aria-current="page">Page 3</span>
+        <span class="breadcrumb-current" aria-current="page">Sankey</span>
       </nav>
 
       <header class="page-header">
-        <h1 class="page-title">Page <span class="acid">3</span></h1>
+        <h1 class="page-title">Sankey <span class="acid">Diagram</span></h1>
       </header>
 
-      <div class="empty-state" style="min-height:360px;">
-        <p class="empty-state-title">Implementation coming</p>
-        <p class="empty-state-desc">This visualisation will be added in a future iteration.</p>
-      </div>
+      <!-- <section class="viz-pair">
+        <div class="viz-pair-main">
+          <header class="section-heading">
+            <h2 class="section-heading-title">Genre Share Over Time</h2>
+            <p class="section-heading-sub">Cumulative-normalised share of releases per genre, given the active filters.</p>
+          </header>
+          <div id="timeline-container" role="img" aria-label="Genre share over time line chart"></div>
+        </div>
+        <aside class="viz-pair-aside">
+          <header class="section-heading">
+            <h2 class="section-heading-title">Selected Regions</h2>
+            <p class="section-heading-sub">Highlighted on the map.</p>
+          </header>
+          <div id="worldmap-container" role="img" aria-label="World map of selected regions"></div>
+        </aside>
+      </section> -->
+
+      <section class="viz-section">
+        <header class="section-heading">
+          <h2 class="section-heading-title">Genre <span class="acid">Flow</span> by Region</h2>
+          <p class="section-heading-sub">Track volume flowing from each continental region into genre categories.</p>
+        </header>
+
+        <div class="insight-cards">
+          <div class="insight-card" id="card-top-flow">
+            <span class="insight-card-value">—</span>
+            <span class="insight-card-desc">Strongest genre corridor</span>
+          </div>
+          <div class="insight-card" id="card-total-tracks">
+            <span class="insight-card-value">—</span>
+            <span class="insight-card-desc">Total track flows visualised</span>
+          </div>
+          <div class="insight-card" id="card-regions">
+            <span class="insight-card-value">—</span>
+            <span class="insight-card-desc">Source regions tracked</span>
+          </div>
+          <div class="insight-card" id="card-genres">
+            <span class="insight-card-value">—</span>
+            <span class="insight-card-desc">Genre destinations</span>
+          </div>
+        </div>
+
+        <div id="viz-container"
+            role="img"
+            aria-label="Sankey diagram showing genre flows from continents"
+            style="width:100%;height:520px;">
+        </div>
+      </section>      
+
+      <p class="data-source">
+        Data: <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>
+        — 2,340 recordings across 6 genres, retrieved April 2026 via the MusicBrainz API (CC0).
+        Map tiles: <a href="https://github.com/topojson/world-atlas" target="_blank" rel="noopener">world-atlas</a> (Natural Earth).
+      </p>
 
     </main>
   </div>
 
   <script type="module" src="../js/main.js"></script>
-  <script type="module">
-    import { initFilters } from '../js/filters.js';
-    document.addEventListener('DOMContentLoaded', initFilters);
-  </script>
+  <script type="module" src="../js/pages/sankey.js"></script>
 </body>
 </html>
