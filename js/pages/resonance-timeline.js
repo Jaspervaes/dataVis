@@ -545,10 +545,22 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
   titleEl.textContent = year;
 
   // ── Crisis-delta column ───────────────────────────────────
-  // Baseline = the 3 years immediately preceding the selected year,
-  // clamped to whatever data the active features have available.
-  const baselineYears = [year - 3, year - 2, year - 1];
-  deltaSubEl.textContent = `VS. ${year - 3}–${year - 1} BASELINE`;
+  // Default baseline: 3 years immediately preceding the selected year.
+  // If the year sits inside one or more active crises, pivot the baseline
+  // to the 3 years before the *crisis* began — so the comparison answers
+  // "how did music change because of this event?" rather than a rolling
+  // year-over-year drift. Highest-priority crisis wins when several overlap.
+  const overlappingCrises = crises.filter(c => year >= +c.start_year && year <= +c.end_year);
+  const headlineCrisis = overlappingCrises.length
+    ? [...overlappingCrises].sort(
+        (a, b) => (CRISIS_PRIORITY[b.crisis_type] || 0) - (CRISIS_PRIORITY[a.crisis_type] || 0)
+      )[0]
+    : null;
+  const baselineAnchor = headlineCrisis ? +headlineCrisis.start_year : year;
+  const baselineYears = [baselineAnchor - 3, baselineAnchor - 2, baselineAnchor - 1];
+  deltaSubEl.textContent = headlineCrisis
+    ? `VS. PRE-CRISIS (${baselineAnchor - 3}–${baselineAnchor - 1})`
+    : `VS. ${year - 3}–${year - 1} BASELINE`;
 
   const featureEntries = Object.entries(seriesByFeature);
   const rowsHtml = featureEntries.map(([feature, fseries]) => {
@@ -583,9 +595,8 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
   deltaRowsEl.innerHTML = rowsHtml || '<p class="insight-empty">No active features.</p>';
 
   // Active crises overlapping the selected year, respecting current filter.
-  const activeCrises = crises.filter(c => year >= +c.start_year && year <= +c.end_year);
-  deltaCrisesEl.innerHTML = activeCrises.length
-    ? activeCrises.map(c => `
+  deltaCrisesEl.innerHTML = overlappingCrises.length
+    ? overlappingCrises.map(c => `
         <span class="insight-crisis-pill" style="color:${CRISIS_COLORS[c.crisis_type]}">
           <span class="insight-crisis-dot" style="background:${CRISIS_COLORS[c.crisis_type]}"></span>
           ${c.crisis_name}
@@ -623,7 +634,7 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
 
   const featureLabel = FEATURE_LABELS[featureForRegion] || featureForRegion;
   const isTempo      = featureForRegion === 'tempo';
-  regionSubEl.textContent = `${featureLabel.toUpperCase()} BY REGION`;
+  regionSubEl.textContent = `${featureLabel.toUpperCase()} vs. EUROPE`;
 
   // Render the segmented tabs (one per active audio feature).
   const tabsEl = document.getElementById('insight-region-tabs');
@@ -678,40 +689,74 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
   };
 
   const fmtVal = v => isTempo ? `${(v * TEMPO_NORM).toFixed(0)} BPM` : `${(v * 100).toFixed(1)}%`;
+  const fmtDelta = d => {
+    const shown = isTempo ? d * TEMPO_NORM : d * 100;
+    const unit  = isTempo ? ' BPM' : ' pts';
+    const arrow = Math.abs(shown) < 0.5 ? '▬' : (shown > 0 ? '▲' : '▼');
+    const cls   = Math.abs(shown) < 0.5 ? 'flat' : (shown > 0 ? 'up' : 'down');
+    return { html: `${arrow} ${Math.abs(shown).toFixed(1)}${unit}`, cls };
+  };
 
-  regionBarsEl.innerHTML = regionStats.map(s => {
+  // Europe is the anchor; if it's not in the selected regions (shouldn't
+  // happen now that the checkbox is locked, but guard anyway), fall back
+  // to the old absolute-value rendering.
+  const europeStat = regionStats.find(s => s.region === 'europe');
+  const others     = regionStats.filter(s => s.region !== 'europe');
+
+  if (!europeStat || europeStat.value == null) {
+    regionBarsEl.innerHTML = regionStats.map(s => {
+      const valTxt = s.value == null ? '<span class="insight-na-tag">no data</span>' : fmtVal(s.value);
+      return `
+        <div class="insight-bar-row${s.value == null ? ' is-empty' : ''}">
+          <span class="insight-bar-label">${REGION_LABELS[s.region]}</span>
+          <span class="insight-bar-value">${valTxt}</span>
+        </div>`;
+    }).join('');
+    regionFootEl.innerHTML = `<span class="insight-empty">No European tracks for ${year} — showing absolute values.</span>`;
+    return;
+  }
+
+  // Europe row: shown first as the explicit baseline (absolute value).
+  const europeRowHtml = `
+    <div class="insight-bar-row" style="border-bottom:1px solid var(--border, rgba(255,255,255,0.08));padding-bottom:0.4rem;margin-bottom:0.2rem;">
+      <span class="insight-bar-label" style="font-weight:600;color:${REGION_COLORS.europe}">${REGION_LABELS.europe}</span>
+      <span class="insight-bar-value">${fmtVal(europeStat.value)} <span style="opacity:0.55;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;margin-left:0.35em;">baseline</span></span>
+    </div>`;
+
+  // Other regions: signed delta vs. Europe.
+  const otherRowsHtml = others.map(s => {
     if (s.value == null) {
       return `
         <div class="insight-bar-row is-empty" title="No tracks attributed to this region for ${year}">
           <span class="insight-bar-label">${REGION_LABELS[s.region]}</span>
-          <span class="insight-bar-track">
-            <span class="insight-bar-fill" style="width:0%"></span>
-          </span>
-          <span class="insight-bar-value"><span class="insight-na-tag">no data</span></span>
+          <span class="insight-row-delta flat"><span class="insight-na-tag">no data</span></span>
         </div>`;
     }
-    const pct = Math.max(0, Math.min(1, s.value)) * 100;
+    const { html, cls } = fmtDelta(s.value - europeStat.value);
     return `
       <div class="insight-bar-row">
-        <span class="insight-bar-label">${REGION_LABELS[s.region]}</span>
-        <span class="insight-bar-track">
-          <span class="insight-bar-fill" style="width:${pct.toFixed(1)}%;background:${REGION_COLORS[s.region]}"></span>
-        </span>
-        <span class="insight-bar-value">${fmtVal(s.value)}</span>
+        <span class="insight-bar-label" style="color:${REGION_COLORS[s.region]}">${REGION_LABELS[s.region]}</span>
+        <span class="insight-row-delta ${cls}">${html}</span>
       </div>`;
   }).join('');
 
-  const present = regionStats.filter(s => s.value != null);
-  const sorted  = [...present].sort((a, b) => b.value - a.value);
-  const spread  = sorted[0].value - sorted[sorted.length - 1].value;
-  const spreadTxt = isTempo
-    ? `${(spread * TEMPO_NORM).toFixed(1)} BPM`
-    : `${(spread * 100).toFixed(1)} pts`;
+  regionBarsEl.innerHTML = europeRowHtml + otherRowsHtml;
 
-  regionFootEl.innerHTML = `
-    <span><span class="insight-foot-label">Spread</span><span class="insight-foot-value">${spreadTxt}</span></span>
-    <span><span class="insight-foot-label">Highest</span><span class="insight-foot-value">${REGION_LABELS[sorted[0].region]}</span></span>
-  `;
+  // Footer: closest / furthest from Europe (by absolute gap).
+  const presentOthers = others.filter(s => s.value != null);
+  if (presentOthers.length) {
+    const byGap   = [...presentOthers].sort(
+      (a, b) => Math.abs(a.value - europeStat.value) - Math.abs(b.value - europeStat.value)
+    );
+    const closest = byGap[0];
+    const furthest = byGap[byGap.length - 1];
+    regionFootEl.innerHTML = `
+      <span><span class="insight-foot-label">Closest to Europe</span><span class="insight-foot-value">${REGION_LABELS[closest.region]}</span></span>
+      <span><span class="insight-foot-label">Furthest</span><span class="insight-foot-value">${REGION_LABELS[furthest.region]}</span></span>
+    `;
+  } else {
+    regionFootEl.innerHTML = '';
+  }
 }
 
 // ── Insight cards ─────────────────────────────────────────────
