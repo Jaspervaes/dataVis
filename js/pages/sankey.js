@@ -224,8 +224,8 @@ let worldFeatures = null;
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
-
-  rawTracks = await loadCSV('../data/spotify-tracks.csv');
+  // get spotify-tracks-2.csv through local_musicbrainz.py
+  rawTracks = await loadCSV('../data/spotify-tracks-2.csv');
   console.log('raw rows:', rawTracks.length);
   console.log('sample row:', rawTracks[0]);
   const data = transformToSankey(rawTracks, getFilters());
