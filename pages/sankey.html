@@ -115,37 +115,47 @@
         </aside>
       </section> -->
 
-      <section class="viz-section">
-        <header class="section-heading">
-          <h2 class="section-heading-title">Genre <span class="acid">Flow</span> by Region</h2>
-          <p class="section-heading-sub">Track volume flowing from each continental region into genre categories.</p>
-        </header>
+      <section class="viz-pair">
+        <div class="viz-pair-main">
+          <header class="section-heading">
+            <h2 class="section-heading-title">Genre <span class="acid">Flow</span> by Region</h2>
+            <p class="section-heading-sub">Track volume flowing from each continental region into genre categories.</p>
+          </header>
 
-        <div class="insight-cards">
-          <div class="insight-card" id="card-top-flow">
-            <span class="insight-card-value">—</span>
-            <span class="insight-card-desc">Strongest genre corridor</span>
+          <div class="insight-cards">
+            <div class="insight-card" id="card-top-flow">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Strongest genre corridor</span>
+            </div>
+            <div class="insight-card" id="card-total-tracks">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Total track flows visualised</span>
+            </div>
+            <div class="insight-card" id="card-regions">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Source regions tracked</span>
+            </div>
+            <div class="insight-card" id="card-genres">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Genre destinations</span>
+            </div>
           </div>
-          <div class="insight-card" id="card-total-tracks">
-            <span class="insight-card-value">—</span>
-            <span class="insight-card-desc">Total track flows visualised</span>
-          </div>
-          <div class="insight-card" id="card-regions">
-            <span class="insight-card-value">—</span>
-            <span class="insight-card-desc">Source regions tracked</span>
-          </div>
-          <div class="insight-card" id="card-genres">
-            <span class="insight-card-value">—</span>
-            <span class="insight-card-desc">Genre destinations</span>
-          </div>
+
         </div>
 
-        <div id="viz-container"
-            role="img"
-            aria-label="Sankey diagram showing genre flows from continents"
-            style="width:100%;height:520px;">
-        </div>
-      </section>      
+        <aside class="viz-pair-aside">
+          <header class="section-heading">
+            <h2 class="section-heading-title">Sankey <span class="acid">Diagram</span></h2>
+            <p class="section-heading-sub">Sankey showing genre flows from continents.</p>
+          </header>
+
+          <div id="viz-container"
+               role="img"
+               aria-label="Sankey diagram showing genre flows from continents"
+               style="width:100%;height:520px;">
+          </div>
+        </aside>
+      </section>
 
       <p class="data-source">
         Data: <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>

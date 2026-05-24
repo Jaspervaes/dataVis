@@ -81,6 +81,13 @@ SEARCH_GENRES = {
     "latin":     "Latin",
 }
 
+# Fetch more records by year window so all years are represented.
+YEAR_START   = 1986
+YEAR_END     = 2025
+YEAR_STEP    = 1
+QUERY_LIMIT  = 100
+MAX_OFFSET   = 500
+
 def mb_get(endpoint, params):
     params["fmt"] = "json"
     r = requests.get(MB_BASE + endpoint, params=params, headers=HEADERS, timeout=30)
@@ -101,35 +108,50 @@ raw_tracks = []
 
 for tag, genre_name in SEARCH_GENRES.items():
     print(f"\n  Genre: {genre_name} (tag: {tag})")
-    for offset in range(0, 500, 100):
-        try:
-            data = mb_get("recording", {"query": f'tag:"{tag}"', "limit": 100, "offset": offset})
-            recs = data.get("recordings", [])
-            print(f"    offset={offset} -> {len(recs)} recordings")
-            for rec in recs:
-                ac = rec.get("artist-credit", [{}])[0]
-                if isinstance(ac, str):
-                    continue
-                artist = ac.get("artist", {})
-                artist_id   = artist.get("id", "")
-                artist_name = artist.get("name", "")
-                if not artist_id:
-                    continue
-                date = rec.get("first-release-date", "")
-                year = date[:4] if date and date[:4].isdigit() else ""
-                rec_tags = [t["name"] for t in rec.get("tags", [])]
-                raw_tracks.append({
-                    "track_id":   rec["id"],
-                    "title":      rec.get("title", ""),
-                    "artist_id":  artist_id,
-                    "artist_name":artist_name,
-                    "genre":      normalise_genre(rec_tags, genre_name),
-                    "year":       year,
+    for year in range(YEAR_START, YEAR_END + 1, YEAR_STEP):
+        year_query = f'date:[{year} TO {year}]'
+        for offset in range(0, MAX_OFFSET, QUERY_LIMIT):
+            try:
+                data = mb_get("recording", {
+                    "query": f'tag:"{tag}" AND {year_query}',
+                    "limit": QUERY_LIMIT,
+                    "offset": offset,
                 })
-        except Exception as e:
-            print(f"    ERROR at offset={offset}: {e}")
+                recs = data.get("recordings", [])
+                print(f"    year={year} offset={offset} -> {len(recs)} recordings")
+                if not recs:
+                    break
+                for rec in recs:
+                    ac = rec.get("artist-credit", [{}])[0]
+                    if isinstance(ac, str):
+                        continue
+                    artist = ac.get("artist", {})
+                    artist_id   = artist.get("id", "")
+                    artist_name = artist.get("name", "")
+                    if not artist_id:
+                        continue
+                    date = rec.get("first-release-date", "")
+                    year = date[:4] if date and date[:4].isdigit() else ""
+                    rec_tags = [t["name"] for t in rec.get("tags", [])]
+                    raw_tracks.append({
+                        "track_id":   rec["id"],
+                        "title":      rec.get("title", ""),
+                        "artist_id":  artist_id,
+                        "artist_name":artist_name,
+                        "genre":      normalise_genre(rec_tags, genre_name),
+                        "year":       year,
+                    })
+            except Exception as e:
+                print(f"    ERROR year={year} offset={offset}: {e}")
+                break
 
 print(f"\nTotal raw tracks collected: {len(raw_tracks)}")
+
+# Write raw tracks to a checkpoint file for debugging/inspection
+raw_tracks_file = os.path.join(os.path.dirname(__file__), "raw-tracks.json")
+with open(raw_tracks_file, "w", encoding="utf-8") as f:
+    json.dump(raw_tracks, f, indent=2, ensure_ascii=False)
+print(f"Raw tracks checkpoint written to {raw_tracks_file}")
 
 # ── Phase 2: lookup artist countries ─────────────────────────────────────────
 print("\n=== Phase 2: Looking up artist countries ===")

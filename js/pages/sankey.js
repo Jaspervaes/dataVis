@@ -101,13 +101,6 @@ function transformToSankey(tracks, filters) {
 
   if (Object.keys(flows).length === 0) return { nodes: [], links: [] };
 
-  // Build unique node list preserving source/target order
-  const nodeNames = [
-    ...SOURCES,
-    ...Object.keys(GENRE_COLORS),
-  ];
-  const nodes = nodeNames.map(name => ({ id: name, name }));
-
   // Links use string node ids to match .nodeId(d => d.id) in the layout
   const links = Object.entries(flows)
     .map(([key, value]) => {
@@ -115,6 +108,18 @@ function transformToSankey(tracks, filters) {
       return { source, target, value };
     })
     .filter(l => l.value > 0);
+
+  // Build node list from the links so unchecked continents (or absent nodes)
+  // don't appear as empty nodes in the Sankey layout.
+  const nodeSet = new Set();
+  links.forEach(l => { nodeSet.add(l.source); nodeSet.add(l.target); });
+
+  const nodes = [
+    // keep SOURCES order for region nodes, include only those present in links
+    ...SOURCES.filter(s => nodeSet.has(s)).map(name => ({ id: name, name })),
+    // then genres, preserving defined order when present
+    ...Object.keys(GENRE_COLORS).filter(g => nodeSet.has(g)).map(name => ({ id: name, name })),
+  ];
 
   return { nodes, links };
 }
@@ -376,12 +381,16 @@ function render(data) {
     });
 
   // ── Labels ─────────────────────────────────────────────────
+  // Resolve text color from CSS variables so labels adapt to light/dark mode
+  const cs = getComputedStyle(document.documentElement);
+  const TEXT_FILL = (cs.getPropertyValue('--text-primary') || '#f1f5f9').trim() || '#111';
+
   nodeRects.append('text')
     .attr('x', d => SOURCES.includes(d.name) ? -8 : (d.x1 - d.x0 + 8))
     .attr('y', d => (d.y1 - d.y0) / 2)
     .attr('dy', '0.35em')
     .attr('text-anchor', d => SOURCES.includes(d.name) ? 'end' : 'start')
-    .attr('fill', '#f1f5f9')
+    .attr('fill', TEXT_FILL)
     .attr('font-size', 12)
     .attr('font-family', 'Inter, system-ui, sans-serif')
     .attr('font-weight', 500)
