@@ -25,7 +25,8 @@ const GENRE_COLORS = {
   'Jazz':       '#c8a06a',
   'Classical':  '#a0a0c0',
 };
-const GENRE_ORDER = ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Country','Jazz','Classical'];
+const GENRE_ORDER = ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Country'];
+const HIDDEN_GENRES_HARD = new Set(['Jazz', 'Classical']);  // not featured in the page
 
 const HIST_START    = 1986;
 const FORECAST_START = 2026;
@@ -274,6 +275,7 @@ function render() {
   // Collect visible series
   const visible = [];
   for (const [genre, s] of (globalSeries || new Map())) {
+    if (HIDDEN_GENRES_HARD.has(genre)) continue;        // never shown on this page
     if (hiddenGenres.has(genre)) continue;
     if (activeGenres.size && !activeGenres.has(genre)) continue;
     visible.push([genre, s]);

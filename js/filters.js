@@ -26,7 +26,7 @@ const _state = {
   audioFeatures: ['energy', 'valence', 'tempo', 'danceability'],
   crisisTypes: ['economic', 'armed_conflict', 'pandemic'],
   regions: ['europe', 'americas', 'africa', 'asia', 'oceania'],
-  genres: ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Jazz','Country','Afrobeats','Classical'],
+  genres: ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Country','Afrobeats'],
 };
 
 /**
@@ -115,7 +115,7 @@ function _bindResetButton() {
     _state.audioFeatures = ['energy', 'valence', 'tempo', 'danceability'];
     _state.crisisTypes   = ['economic', 'armed_conflict', 'pandemic'];
     _state.regions       = ['europe', 'americas', 'africa', 'asia', 'oceania'];
-    _state.genres        = ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Jazz','Country','Afrobeats','Classical'];
+    _state.genres        = ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Country','Afrobeats'];
 
     // Re-sync DOM checkboxes
     document.querySelectorAll('[data-filter-group]').forEach(cb => {
