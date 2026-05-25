@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cultural Flow — The Roots of Rhythm</title>
+  <title>Sankey Diagram — The Roots of Rhythm</title>
   <meta name="description" content="Sankey diagram: genre flows between continents." />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
 
@@ -29,12 +29,11 @@
       </div>
     </a>
     <ul class="nav-links" role="list">
-      <li><a href="cultural-flow.html"      class="nav-link active" aria-current="page">Cultural Flow</a></li>
+      <li><a href="cultural-flow.html"      class="nav-link">Cultural Flow</a></li>
       <li><a href="resonance-timeline.html" class="nav-link">Resonance Timeline</a></li>
       <li><a href="genre-forecast.html"     class="nav-link">Page 3</a></li>
       <li><a href="network-map.html"        class="nav-link">Global Collabs</a></li>
-      <li><a href="sankey.html"             class="nav-link">Sankey</a></li>
-
+      <li><a href="sankey.html"             class="nav-link active " aria-current="page">Sankey</a></li>
     </ul>
 
     <button class="theme-toggle" aria-label="Toggle light/dark theme" title="Toggle Theme">
@@ -92,14 +91,14 @@
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <a href="../index.html" class="breadcrumb-link">Home</a>
         <span class="breadcrumb-sep" aria-hidden="true">/</span>
-        <span class="breadcrumb-current" aria-current="page">Cultural Flow</span>
+        <span class="breadcrumb-current" aria-current="page">Sankey</span>
       </nav>
 
       <header class="page-header">
-        <h1 class="page-title">Cultural <span class="acid">Flow</span></h1>
+        <h1 class="page-title">Sankey <span class="acid">Diagram</span></h1>
       </header>
 
-      <section class="viz-pair">
+      <!-- <section class="viz-pair">
         <div class="viz-pair-main">
           <header class="section-heading">
             <h2 class="section-heading-title">Genre Share Over Time</h2>
@@ -114,6 +113,48 @@
           </header>
           <div id="worldmap-container" role="img" aria-label="World map of selected regions"></div>
         </aside>
+      </section> -->
+
+      <section class="viz-pair">
+        <div class="viz-pair-main">
+          <header class="section-heading">
+            <h2 class="section-heading-title">Genre <span class="acid">Flow</span> by Region</h2>
+            <p class="section-heading-sub">Track volume flowing from each continental region into genre categories.</p>
+          </header>
+
+          <div class="insight-cards">
+            <div class="insight-card" id="card-top-flow">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Strongest genre corridor</span>
+            </div>
+            <div class="insight-card" id="card-total-tracks">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Total track flows visualised</span>
+            </div>
+            <div class="insight-card" id="card-regions">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Source regions tracked</span>
+            </div>
+            <div class="insight-card" id="card-genres">
+              <span class="insight-card-value">—</span>
+              <span class="insight-card-desc">Genre destinations</span>
+            </div>
+          </div>
+
+        </div>
+
+        <aside class="viz-pair-aside">
+          <header class="section-heading">
+            <h2 class="section-heading-title">Sankey <span class="acid">Diagram</span></h2>
+            <p class="section-heading-sub">Sankey showing genre flows from continents.</p>
+          </header>
+
+          <div id="viz-container"
+               role="img"
+               aria-label="Sankey diagram showing genre flows from continents"
+               style="width:100%;height:520px;">
+          </div>
+        </aside>
       </section>
 
       <p class="data-source">
@@ -122,11 +163,10 @@
         Map tiles: <a href="https://github.com/topojson/world-atlas" target="_blank" rel="noopener">world-atlas</a> (Natural Earth).
       </p>
 
-
     </main>
   </div>
 
   <script type="module" src="../js/main.js"></script>
-  <script type="module" src="../js/pages/cultural-flow.js"></script>
+  <script type="module" src="../js/pages/sankey.js"></script>
 </body>
 </html>

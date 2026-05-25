@@ -1,256 +1,556 @@
 /**
  * network-map.js
  * ─────────────────────────────────────────────────────────────
- * Force-directed graph: artist collaboration network.
+ * 3D globe of cross-region music collaborations.
  *
- * Each node is an artist, coloured by their home region.
- * Edges connect artists who have collaborated; edge weight
- * scales with the number of collaborations.
+ * Arcs are aggregated routes — by continent ('region' level, the clean
+ * overview) or by country ('country' level, more detail). Arc thickness
+ * scales with the route's total collaborations. Click an arc to drill
+ * into the underlying artist pairs.
  *
- * TODO: Replace mock data with real:
- *   const raw = await loadCSV('../data/artist-connections.csv');
- *   const { nodes, links } = transformNetwork(raw, getFilters());
+ * Data: data/artist-connections.csv (pairwise artist credits from
+ * data/fetch_musicbrainz.py); falls back to a placeholder CSV until the
+ * real fetch completes. Region anchors are fixed below; country positions
+ * come from data/country-coords.json.
  *
- * Depends on:
- *   - D3 v7 (global window.d3)
- *   - filters.js  (filter state)
- *   - tooltip.js  (hover tooltips)
+ * Uses globe.gl (UMD). Reuses the project's sidebar filters, tooltip
+ * helper, and insight-card pattern.
  * ─────────────────────────────────────────────────────────────
  */
 
 import { initFilters, getFilters } from '../filters.js';
-import { tooltip, tooltipHtml }   from '../tooltip.js';
-import { mockArtistNetwork }       from '../data-loader.js';
+import { tooltip, tooltipHtml }    from '../tooltip.js';
+import { loadCSV }                 from '../data-loader.js';
 
-const REGION_COLORS = {
-  Europe:   'var(--acid)',  // acid
-  Americas: '#e5321c',  // red
-  Africa:   '#f0a830',  // amber
-  Asia:     '#6aabf0',  // cool blue
-  Oceania:  '#c47fa0',  // dusty rose
+const CONNECTIONS_PATH = '../data/artist-connections.csv';
+const PLACEHOLDER_PATH = '../data/artist-connections-placeholder.csv';
+const COORDS_PATH      = '../data/country-coords.json';
+const WORLD_GEO_URL    = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson';
+
+// One anchor per continent — region-level arcs run between these points.
+const REGION_ANCHORS = {
+  Europe:   { lat: 50,  lon: 10  },
+  Americas: { lat: 5,   lon: -75 },
+  Africa:   { lat: 2,   lon: 20  },
+  Asia:     { lat: 35,  lon: 100 },
+  Oceania:  { lat: -25, lon: 140 },
 };
 
-let simulation = null;
-let rawNetwork = null;
+let globe         = null;
+let connections   = [];        // raw rows from the CSV
+let coords        = {};        // ISO-2 → { name, lat, lon, region }
+let world         = null;      // country polygons GeoJSON
+let europeOnly    = false;     // "Europe ↔ World only" toggle
+let minCollabs    = 1;         // hide routes below this many collaborations
+let maxRouteTotal = 1;         // busiest visible route — stroke scales against this
+let granularity   = 'region';  // 'region' (overview) | 'country' (detail)
+let pinnedArc     = null;      // corridor kept open on click
+
+// ── Theme-reactive colours (read CSS vars at call time) ───────
+function regionColour(region) {
+  const root = getComputedStyle(document.documentElement);
+  const map = {
+    Europe:   root.getPropertyValue('--acid').trim()      || '#c8f000',
+    Americas: root.getPropertyValue('--red').trim()       || '#e5321c',
+    Africa:   root.getPropertyValue('--amber').trim()     || '#f0a830',
+    Asia:     root.getPropertyValue('--blue-cool').trim() || '#6aabf0',
+    Oceania:  root.getPropertyValue('--rose').trim()      || '#c47fa0',
+  };
+  return map[region] || '#7c3aed';
+}
+function bgColour() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim() || '#0e0c0a';
+}
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
 
-  // TODO: Replace with loadCSV('../data/artist-connections.csv')
-  rawNetwork = mockArtistNetwork(22);
+  const container = document.getElementById('viz-container');
+  if (!container) return;
 
+  const europeCb = document.getElementById('filter-europe-only');
+  if (europeCb) europeCb.addEventListener('change', () => { europeOnly = europeCb.checked; render(); });
+
+  const minSlider  = document.getElementById('filter-min-collabs');
+  const minDisplay = document.getElementById('filter-min-collabs-display');
+  if (minSlider) minSlider.addEventListener('input', () => {
+    minCollabs = parseInt(minSlider.value, 10) || 1;
+    if (minDisplay) minDisplay.textContent = `${minCollabs}+`;
+    render();
+  });
+
+  document.querySelectorAll('input[name="granularity"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      granularity = radio.value;
+      // Region totals dwarf country totals — reset the threshold and rescale it.
+      minCollabs = 1;
+      if (minSlider)  minSlider.value = 1;
+      if (minDisplay) minDisplay.textContent = '1+';
+      updateThresholdSlider();
+      render();
+    });
+  });
+
+  let usingPlaceholder = false;
+  try {
+    const [csv, coordsJson, worldJson] = await Promise.all([
+      loadCSV(CONNECTIONS_PATH).catch(() => []),
+      fetch(COORDS_PATH).then(r => r.json()),
+      fetch(WORLD_GEO_URL).then(r => r.json()),
+    ]);
+    connections = Array.isArray(csv) ? csv : [];
+    coords = coordsJson;
+    world  = worldJson;
+    if (!connections.length) {
+      connections = await loadCSV(PLACEHOLDER_PATH).catch(() => []);
+      usingPlaceholder = connections.length > 0;
+    }
+  } catch (err) {
+    console.error('[network-map] data load failed:', err);
+    showMessage(container, 'Failed to load data', String(err.message || err));
+    return;
+  }
+
+  if (!connections.length) {
+    showMessage(container, 'No collaboration data yet',
+      'Run `python data/fetch_musicbrainz.py` to populate data/artist-connections.csv, then refresh.');
+    return;
+  }
+
+  togglePlaceholderBadge(usingPlaceholder);
+
+  updateThresholdSlider();  // scale the threshold to the current detail level
+
+  if (typeof window.Globe !== 'function') {
+    showMessage(container, 'Globe library failed to load',
+      'The globe.gl script did not load (network/CDN issue). Check your connection and refresh.');
+    return;
+  }
+
+  initGlobe(container);
   render();
 
   window.addEventListener('filters:changed', render);
-  window.addEventListener('resize', () => {
-    if (simulation) simulation.stop();
-    render();
-  });
+  window.addEventListener('themechanged',    () => { restyleGlobe(); render(); });
+  window.addEventListener('resize',          sizeGlobe);
 });
 
-// ── Data filtering ────────────────────────────────────────────
-function filterNetwork(data, filters) {
-  const activeRegions = new Set(filters.regions.map(r => r.toLowerCase()));
+// ── Globe setup ──────────────────────────────────────────────
+function initGlobe(container) {
+  globe = window.Globe()(container)
+    .backgroundColor('rgba(0,0,0,0)')
+    .showAtmosphere(true)
+    .atmosphereColor('#7a6f5e')
+    .atmosphereAltitude(0.15)
+    .globeImageUrl(null);
 
-  const nodes = data.nodes.filter(n =>
-    activeRegions.has(n.region.toLowerCase())
-  );
-  const nodeIds = new Set(nodes.map(n => n.id));
-  const links = data.links.filter(l =>
-    nodeIds.has(typeof l.source === 'object' ? l.source.id : l.source) &&
-    nodeIds.has(typeof l.target === 'object' ? l.target.id : l.target)
-  );
+  // globe.gl clears the container on mount, so move the insight HUD in now.
+  const hud = document.getElementById('insight-overlay');
+  if (hud) container.appendChild(hud);
 
-  return {
-    nodes: nodes.map(n => ({ ...n })),  // deep-copy so simulation doesn't bleed
-    links: links.map(l => ({ ...l })),
-  };
+  const mat = globe.globeMaterial();
+  mat.color.set(bgColour());
+  mat.emissive.set(bgColour());
+  mat.emissiveIntensity = 0.08;
+
+  globe
+    .polygonsData(world ? world.features : [])
+    .polygonCapColor(polygonColour)
+    .polygonSideColor(() => 'rgba(0,0,0,0)')
+    .polygonStrokeColor(() => 'rgba(255,255,255,0.10)')
+    .polygonAltitude(0.005);
+
+  if (typeof globe.onGlobeClick === 'function') globe.onGlobeClick(() => clearPin());
+
+  const controls = globe.controls();
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.35;
+  controls.enableDamping = true;
+
+  sizeGlobe();
+}
+
+function polygonColour(d) {
+  const iso = isoFromFeature(d);
+  const region = coords[iso]?.region;
+  if (!region) return 'rgba(150, 145, 135, 0.10)';  // no data → neutral grey
+  return rgbaWithAlpha(regionColour(region), 0.18);
+}
+
+function sizeGlobe() {
+  if (!globe) return;
+  const container = document.getElementById('viz-container');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  globe.width(rect.width).height(rect.height);
+}
+
+function restyleGlobe() {
+  if (!globe) return;
+  const mat = globe.globeMaterial();
+  mat.color.set(bgColour());
+  mat.emissive.set(bgColour());
+}
+
+// ── Arc appearance (selection- and layer-aware) ───────────────
+function baseOf(d) { return d.isPulse ? d.base : d; }
+
+function arcColour(d) {
+  const real = baseOf(d);
+  let alpha;
+  if (!pinnedArc)              alpha = d.isPulse ? 0.95 : 0.62;
+  else if (real === pinnedArc) alpha = d.isPulse ? 1.0  : 0.95;
+  else                         alpha = 0.05;
+  return [rgbaWithAlpha(d.cAhex, alpha), rgbaWithAlpha(d.cBhex, alpha)];
+}
+
+function arcStrokeFor(d) {
+  const c = baseOf(d);
+  // Map [1 .. maxRouteTotal] → [1.0 .. 6.5] px on a sqrt curve.
+  const frac = maxRouteTotal > 1 ? Math.sqrt((c.totalCollabs - 1) / (maxRouteTotal - 1)) : 0;
+  const base = 1.0 + frac * 5.5;
+  return c === pinnedArc ? base + 1.5 : base;
+}
+
+// Base line solid; pulse = a short bright segment travelling along it (motion, no gap).
+function arcDashLengthFor(d)  { return d.isPulse ? 0.12 : 1; }
+function arcDashGapFor(d)     { return d.isPulse ? 0.88 : 0; }
+function arcDashAnimateFor(d) {
+  if (!d.isPulse) return 0;
+  const t = baseOf(d).totalCollabs;
+  return 3500 + (10 - Math.min(t, 10)) * 300;
+}
+
+function refreshArcStyles() {
+  if (!globe) return;
+  globe
+    .arcColor(arcColour)
+    .arcStroke(arcStrokeFor)
+    .arcDashLength(arcDashLengthFor)
+    .arcDashGap(arcDashGapFor)
+    .arcDashAnimateTime(arcDashAnimateFor);
 }
 
 // ── Render ────────────────────────────────────────────────────
 function render() {
+  if (!globe) return;
   const filters   = getFilters();
-  const data      = filterNetwork(rawNetwork, filters);
-  const container = document.getElementById('viz-container');
-  if (!container) return;
-  container.innerHTML = '';
+  const pairs     = filterPairs(connections, filters);
+  const corridors = buildCorridors(pairs, granularity);
 
-  if (!data.nodes.length) {
-    container.innerHTML = `<div class="empty-state">
-      <p class="empty-state-title">No artists match the selected regions</p>
-      <p class="empty-state-desc">Enable more regions in the sidebar filters.</p>
-    </div>`;
-    return;
-  }
+  maxRouteTotal = corridors.reduce((m, c) => Math.max(m, c.totalCollabs), 1);
 
-  const rect   = container.getBoundingClientRect();
-  const width  = rect.width  || 800;
-  const height = Math.max(rect.height || 520, 460);
+  const pulseArcs = corridors.map(a => ({ ...a, isPulse: true, base: a }));
+  const arcs = [...corridors, ...pulseArcs];
 
-  const svg = d3.select(container)
-    .append('svg')
-    .attr('width',  width)
-    .attr('height', height)
-    .attr('aria-label', 'Force-directed network of artist collaborations')
-    .attr('role', 'img')
-    .call(d3.zoom()
-      .scaleExtent([0.3, 4])
-      .on('zoom', ({ transform }) => worldG.attr('transform', transform))
-    );
+  updateSubtitle();
+  clearPin({ silent: true });
 
-  const worldG = svg.append('g');
+  globe
+    .arcsData(arcs)
+    .arcStartLat(d => d.startLat)
+    .arcStartLng(d => d.startLng)
+    .arcEndLat(d   => d.endLat)
+    .arcEndLng(d   => d.endLng)
+    .arcColor(arcColour)
+    .arcAltitudeAutoScale(0.6)
+    .arcStroke(arcStrokeFor)
+    .arcDashLength(arcDashLengthFor)
+    .arcDashGap(arcDashGapFor)
+    .arcDashAnimateTime(arcDashAnimateFor)
+    .arcsTransitionDuration(500)
+    .onArcHover(handleArcHover)
+    .onArcClick(handleArcClick);
 
-  // ── Arrowhead marker ─────────────────────────────────────
-  svg.append('defs').append('marker')
-    .attr('id', 'arrow')
-    .attr('viewBox', '0 -4 8 8')
-    .attr('refX', 16)
-    .attr('markerWidth', 5)
-    .attr('markerHeight', 5)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-4L8,0L0,4')
-    .attr('fill', '#1e1e2e');
+  globe.polygonCapColor(polygonColour);
 
-  // ── Simulation ────────────────────────────────────────────
-  if (simulation) simulation.stop();
-
-  simulation = d3.forceSimulation(data.nodes)
-    .force('link',   d3.forceLink(data.links).id(d => d.id).distance(d => 80 - d.weight * 2).strength(0.5))
-    .force('charge', d3.forceManyBody().strength(-180).distanceMax(300))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collide', d3.forceCollide(20))
-    .alphaDecay(0.03);
-
-  // ── Links ─────────────────────────────────────────────────
-  const weightScale = d3.scaleLinear()
-    .domain(d3.extent(data.links, d => d.weight))
-    .range([0.8, 3.5]);
-
-  const linkSel = worldG.append('g').attr('class', 'links')
-    .selectAll('line')
-    .data(data.links)
-    .join('line')
-    .attr('stroke',         '#1e1e2e')
-    .attr('stroke-width',   d => weightScale(d.weight))
-    .attr('stroke-opacity', 0.6);
-
-  // ── Nodes ─────────────────────────────────────────────────
-  const radiusScale = d3.scaleLinear()
-    .domain([0, 100])
-    .range([6, 14]);
-
-  const nodeSel = worldG.append('g').attr('class', 'nodes')
-    .selectAll('g')
-    .data(data.nodes)
-    .join('g')
-    .style('cursor', 'pointer')
-    .call(drag(simulation));
-
-  // Glow ring
-  nodeSel.append('circle')
-    .attr('r', d => radiusScale(d.popularity) + 4)
-    .attr('fill', d => REGION_COLORS[d.region] || '#7c3aed')
-    .attr('opacity', 0.15);
-
-  // Main circle
-  nodeSel.append('circle')
-    .attr('r',    d => radiusScale(d.popularity))
-    .attr('fill', d => REGION_COLORS[d.region] || '#7c3aed')
-    .attr('stroke', '#0a0a0f')
-    .attr('stroke-width', 1.5);
-
-  // Labels (only for high-popularity nodes to avoid clutter)
-  nodeSel.filter(d => d.popularity > 75)
-    .append('text')
-    .attr('dy', d => -(radiusScale(d.popularity) + 5))
-    .attr('text-anchor', 'middle')
-    .attr('fill', '#f1f5f9')
-    .attr('font-size', 10)
-    .attr('font-family', 'Inter, system-ui, sans-serif')
-    .attr('font-weight', 500)
-    .attr('pointer-events', 'none')
-    .text(d => d.name);
-
-  // ── Tooltip ───────────────────────────────────────────────
-  nodeSel
-    .on('mouseenter', function(event, d) {
-      d3.select(this).select('circle:last-of-type').attr('stroke', '#f1f5f9');
-      const collabs = data.links.filter(l =>
-        (typeof l.source === 'object' ? l.source.id : l.source) === d.id ||
-        (typeof l.target === 'object' ? l.target.id : l.target) === d.id
-      ).length;
-
-      tooltip.show(event, tooltipHtml(d.name, [
-        { label: 'Region',         value: d.region,          color: REGION_COLORS[d.region] },
-        { label: 'Country',        value: d.country                                          },
-        { label: 'Genre',          value: d.genre                                            },
-        { label: 'Collaborations', value: collabs                                            },
-        { label: 'Popularity',     value: `${d.popularity}%`                                },
-      ]));
-    })
-    .on('mousemove', event => tooltip.move(event))
-    .on('mouseleave', function() {
-      d3.select(this).select('circle:last-of-type').attr('stroke', '#0a0a0f');
-      tooltip.hide();
-    });
-
-  // ── Tick ──────────────────────────────────────────────────
-  simulation.on('tick', () => {
-    linkSel
-      .attr('x1', d => d.source.x)
-      .attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x)
-      .attr('y2', d => d.target.y);
-
-    nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
-  });
-
-  // ── Legend ────────────────────────────────────────────────
-  const legendG = svg.append('g').attr('transform', `translate(16, 16)`);
-  Object.entries(REGION_COLORS).forEach(([region, color], i) => {
-    legendG.append('circle').attr('cx', 6).attr('cy', i * 22 + 6).attr('r', 6).attr('fill', color);
-    legendG.append('text')
-      .attr('x', 18).attr('y', i * 22 + 10)
-      .attr('fill', '#94a3b8').attr('font-size', 11)
-      .attr('font-family', 'Inter, system-ui, sans-serif')
-      .text(region);
-  });
-
-  updateInsightCards(data);
+  updateInsightCards(pairs);
 }
 
-// ── Drag helper ───────────────────────────────────────────────
-function drag(sim) {
-  return d3.drag()
-    .on('start', (event, d) => {
-      if (!event.active) sim.alphaTarget(0.3).restart();
-      d.fx = d.x; d.fy = d.y;
-    })
-    .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
-    .on('end',  (event, d) => {
-      if (!event.active) sim.alphaTarget(0);
-      d.fx = null; d.fy = null;
+// ── Data shaping ──────────────────────────────────────────────
+function filterPairs(rows, filters) {
+  const activeRegions = new Set(filters.regions); // lowercase
+  const [yStart, yEnd] = filters.decadeRange;
+
+  const pairs = [];
+  for (const r of rows) {
+    const region  = String(r.region || '').toLowerCase();
+    const cregion = String(r.collab_region || '').toLowerCase();
+    if (!activeRegions.has(region) || !activeRegions.has(cregion)) continue;
+    if (europeOnly && ((region === 'europe') === (cregion === 'europe'))) continue;
+
+    const yr = Number(r.year);
+    if (Number.isFinite(yr) && (yr < yStart || yr > yEnd)) continue;
+
+    const a = coords[r.country];
+    const b = coords[r.collab_country];
+    if (!a || !b) continue;
+
+    pairs.push({
+      count:        Math.max(1, Number(r.collaboration_count) || 1),
+      year:         Number.isFinite(yr) ? yr : null,
+      artist:       r.artist_name,
+      collaborator: r.collaborator_name,
+      country:      a.name,    collabCountry: b.name,
+      countryCode:  r.country, collabCode:    r.collab_country,
+      region:       r.region,  collabRegion:  r.collab_region,
+      a, b,
     });
+  }
+  return pairs;
+}
+
+// Aggregate pairs into corridors — by continent ('region') or country.
+// Cross-region only at region level (a self-arc has nowhere to go).
+function buildCorridors(pairs, level) {
+  const map = new Map();
+  for (const p of pairs) {
+    let id1, id2, name1, name2, reg1, reg2, pos1, pos2;
+
+    if (level === 'region') {
+      if (p.region === p.collabRegion) continue;
+      id1 = name1 = reg1 = p.region;       pos1 = REGION_ANCHORS[p.region];
+      id2 = name2 = reg2 = p.collabRegion; pos2 = REGION_ANCHORS[p.collabRegion];
+    } else {
+      id1 = p.countryCode; name1 = p.country;       reg1 = p.region;       pos1 = p.a;
+      id2 = p.collabCode;  name2 = p.collabCountry;  reg2 = p.collabRegion; pos2 = p.b;
+    }
+    if (!pos1 || !pos2) continue;
+
+    if (String(id1) > String(id2)) {
+      [id1, id2]     = [id2, id1];
+      [name1, name2] = [name2, name1];
+      [reg1, reg2]   = [reg2, reg1];
+      [pos1, pos2]   = [pos2, pos1];
+    }
+    const key = `${id1}|${id2}`;
+
+    let c = map.get(key);
+    if (!c) {
+      c = {
+        startLat: pos1.lat, startLng: pos1.lon,
+        endLat:   pos2.lat, endLng:   pos2.lon,
+        cAhex: regionColour(reg1), cBhex: regionColour(reg2),
+        countryA: name1, countryB: name2,
+        regionA:  reg1,  regionB:  reg2,
+        level,
+        totalCollabs: 0, pairCount: 0, pairs: [],
+      };
+      map.set(key, c);
+    }
+    c.totalCollabs += p.count;
+    c.pairCount    += 1;
+    c.pairs.push(p);
+  }
+
+  const corridors = [];
+  for (const c of map.values()) {
+    if (c.totalCollabs < minCollabs) continue;
+    c.pairs.sort((x, y) => y.count - x.count);
+    corridors.push(c);
+  }
+  return corridors;
+}
+
+// Largest single route total for the given level — used to scale the slider.
+// Mirrors buildCorridors: region level is cross-region only; country level
+// includes intra-region country pairs too.
+function computeMaxCorridorTotal(rows, level) {
+  const totals = new Map();
+  for (const r of rows) {
+    const ra = String(r.region || ''), rb = String(r.collab_region || '');
+    if (!ra || !rb) continue;
+    let key;
+    if (level === 'region') {
+      if (ra === rb) continue;
+      key = [ra, rb].sort().join('|');
+    } else {
+      if (!coords[r.country] || !coords[r.collab_country]) continue;
+      key = [r.country, r.collab_country].sort().join('|');
+    }
+    totals.set(key, (totals.get(key) || 0) + Math.max(1, Number(r.collaboration_count) || 1));
+  }
+  let mx = 1;
+  for (const v of totals.values()) if (v > mx) mx = v;
+  return mx;
+}
+
+// Rescale the "minimum collaborations" slider to the current detail level.
+function updateThresholdSlider() {
+  const slider  = document.getElementById('filter-min-collabs');
+  const display = document.getElementById('filter-min-collabs-display');
+  if (!slider) return;
+  const maxTotal = computeMaxCorridorTotal(connections, granularity);
+  slider.max = Math.max(2, Math.min(maxTotal, 200));
+  if (minCollabs > Number(slider.max)) {       // clamp a stale region-scale threshold
+    minCollabs = 1;
+    slider.value = 1;
+    if (display) display.textContent = '1+';
+  }
+}
+
+// ── Hover / click ─────────────────────────────────────────────
+function handleArcHover(arcRaw) {
+  const container = document.getElementById('viz-container');
+  if (container) container.style.cursor = arcRaw ? 'pointer' : 'grab';
+  if (!arcRaw) { tooltip.hide(); return; }
+
+  const c = baseOf(arcRaw);
+  const top = c.pairs[0];
+  const ev = window._lastGlobeMouse || { clientX: 0, clientY: 0 };
+  const placeRows = c.level === 'region' ? [] : [
+    { label: c.regionA, value: c.countryA, color: regionColour(c.regionA) },
+    { label: c.regionB, value: c.countryB, color: regionColour(c.regionB) },
+  ];
+  tooltip.show(ev, tooltipHtml(
+    `${c.countryA} ↔ ${c.countryB}`,
+    [
+      ...placeRows,
+      { label: 'Collaborations', value: c.totalCollabs },
+      { label: 'Artist pairs',   value: c.pairCount },
+      ...(top ? [{ label: 'Top pair', value: `${top.artist} × ${top.collaborator}` }] : []),
+      { label: '', value: 'Click to see artists' },
+    ],
+  ));
+}
+
+document.addEventListener('mousemove', e => {
+  window._lastGlobeMouse = e;
+  if (document.getElementById('d3-tooltip')?.classList.contains('visible')) tooltip.move(e);
+});
+
+function handleArcClick(arcRaw) {
+  if (!arcRaw) return;
+  const c = baseOf(arcRaw);
+  pinnedArc = c;
+  tooltip.hide();
+  if (globe) globe.controls().autoRotate = false;
+  refreshArcStyles();
+  showPinnedPanel(c);
+}
+
+function clearPin({ silent = false } = {}) {
+  pinnedArc = null;
+  hidePinnedPanel();
+  if (globe) {
+    globe.controls().autoRotate = true;
+    if (!silent) refreshArcStyles();
+  }
+}
+
+// ── Drill-down panel ──────────────────────────────────────────
+function ensurePanel() {
+  const container = document.getElementById('viz-container');
+  if (!container) return null;
+  let panel = document.getElementById('arc-detail-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'arc-detail-panel';
+    panel.className = 'arc-detail-panel';
+    container.appendChild(panel);
+  }
+  return panel;
+}
+
+const detailRow = (label, value, color) => `
+  <div class="tooltip-row">
+    <span>${label}</span>
+    <span class="tooltip-value" style="color:${color || 'var(--text-primary)'}">${value}</span>
+  </div>`;
+
+// Level 1: the route — total + ranked list of artist pairs (each click-through).
+function showPinnedPanel(c) {
+  const panel = ensurePanel();
+  if (panel) { renderRouteCard(panel, c); panel.style.display = 'block'; }
+}
+
+function renderRouteCard(panel, c) {
+  const placeRows = c.level === 'region' ? '' : `
+    ${detailRow(c.regionA, c.countryA, regionColour(c.regionA))}
+    ${detailRow(c.regionB, c.countryB, regionColour(c.regionB))}`;
+
+  const MAX = 8;
+  const shown = c.pairs.slice(0, MAX);
+  const pairRows = shown.map((p, i) => `
+    <div class="tooltip-row pair-row" data-i="${i}" role="button" tabindex="0">
+      <span>${p.artist} × ${p.collaborator}</span>
+      <span class="tooltip-value">${p.count}</span>
+    </div>`).join('');
+  const more = c.pairCount > MAX
+    ? `<div class="arc-detail-more">+${c.pairCount - MAX} more pair${c.pairCount - MAX === 1 ? '' : 's'}</div>`
+    : '';
+
+  panel.innerHTML = `
+    <button class="arc-detail-close" aria-label="Close">&times;</button>
+    <div class="tooltip-title">${c.countryA} ↔ ${c.countryB}</div>
+    <div class="tooltip-divider"></div>
+    ${placeRows}
+    ${detailRow('Total collaborations', c.totalCollabs)}
+    ${detailRow('Artist pairs', c.pairCount)}
+    <div class="tooltip-divider"></div>
+    <div class="arc-detail-subhead">Who's collaborating <span class="arc-detail-hint">— click a pair</span></div>
+    ${pairRows}
+    ${more}`;
+  panel.querySelector('.arc-detail-close')?.addEventListener('click', e => { e.stopPropagation(); clearPin(); });
+  panel.querySelectorAll('.pair-row').forEach(el => {
+    el.addEventListener('click', e => { e.stopPropagation(); renderPairCard(panel, c, shown[Number(el.dataset.i)]); });
+  });
+}
+
+// Level 2: a single collaboration — clean from/to detail, with a back link.
+function renderPairCard(panel, c, p) {
+  if (!p) return;
+  panel.innerHTML = `
+    <button class="arc-detail-close" aria-label="Close">&times;</button>
+    <button class="arc-detail-back">‹ Back to route</button>
+    <div class="tooltip-title">${p.artist} × ${p.collaborator}</div>
+    <div class="tooltip-divider"></div>
+    ${detailRow('From', `${p.country} (${p.region})`, regionColour(p.region))}
+    ${detailRow('To',   `${p.collabCountry} (${p.collabRegion})`, regionColour(p.collabRegion))}
+    ${detailRow('Collaborations', p.count)}
+    ${p.year ? detailRow('First year', p.year) : ''}`;
+  panel.querySelector('.arc-detail-close')?.addEventListener('click', e => { e.stopPropagation(); clearPin(); });
+  panel.querySelector('.arc-detail-back')?.addEventListener('click', e => { e.stopPropagation(); renderRouteCard(panel, c); });
+}
+
+function hidePinnedPanel() {
+  const panel = document.getElementById('arc-detail-panel');
+  if (panel) panel.style.display = 'none';
 }
 
 // ── Insight cards ─────────────────────────────────────────────
-function updateInsightCards(data) {
-  const regions = [...new Set(data.nodes.map(n => n.region))];
-  const topNode = data.nodes.reduce((a, b) => b.popularity > a.popularity ? b : a, data.nodes[0] || {});
-  const maxDeg  = data.nodes.reduce((a, n) => {
-    const deg = data.links.filter(l =>
-      (typeof l.source === 'object' ? l.source.id : l.source) === n.id ||
-      (typeof l.target === 'object' ? l.target.id : l.target) === n.id
-    ).length;
-    return deg > a.deg ? { node: n, deg } : a;
-  }, { node: null, deg: 0 });
+function updateInsightCards(pairs) {
+  const cross = pairs.filter(p => p.region !== p.collabRegion);
 
-  setCard('card-artists',     data.nodes.length,     'Artists in network');
-  setCard('card-collabs',     data.links.length,      'Collaboration links');
-  setCard('card-top-artist',  topNode.name ?? '—',    `Highest popularity artist`);
-  setCard('card-hub',         maxDeg.node?.name ?? '—', `Most connected (${maxDeg.deg} links)`);
+  const europeOut = new Map();
+  const partnerCounts = new Map();
+  for (const p of cross) {
+    const aEu = p.region === 'Europe';
+    const bEu = p.collabRegion === 'Europe';
+    if (aEu !== bEu) {
+      const euName      = aEu ? p.artist : p.collaborator;
+      const foreignName = aEu ? p.collaborator : p.artist;
+      europeOut.set(euName, (europeOut.get(euName) || 0) + p.count);
+      partnerCounts.set(foreignName, (partnerCounts.get(foreignName) || 0) + p.count);
+    }
+  }
+  const topEuro    = pickTop(europeOut);
+  const topPartner = pickTop(partnerCounts);
+
+  setCard('card-collabs',    formatNum(pairs.length),  'Collaborations shown');
+  setCard('card-cross',      formatNum(cross.length),  'Cross-region pairs');
+  setCard('card-top-artist', topEuro?.name || '—',
+          topEuro    ? `${formatNum(topEuro.count)} cross-region links`    : 'Top European exporter');
+  setCard('card-hub',        topPartner?.name || '—',
+          topPartner ? `${formatNum(topPartner.count)} links with Europe` : 'Most-connected partner abroad');
+}
+
+function pickTop(map) {
+  let best = null;
+  for (const [name, count] of map) if (!best || count > best.count) best = { name, count };
+  return best;
 }
 
 function setCard(id, value, desc) {
@@ -260,4 +560,45 @@ function setCard(id, value, desc) {
   const d = el.querySelector('.insight-card-desc');
   if (v) v.textContent = value;
   if (d) d.textContent = desc;
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function isoFromFeature(feature) {
+  const p = feature?.properties || {};
+  return p.ISO_A2 || p.ISO_A2_EH || p.iso_a2 || p.WB_A2 || '';
+}
+
+function rgbaWithAlpha(hex, alpha) {
+  if (!hex) return `rgba(124, 58, 237, ${alpha})`;
+  const m3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(hex);
+  const m6 = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  let r, g, b;
+  if (m6)      { r = parseInt(m6[1],16); g = parseInt(m6[2],16); b = parseInt(m6[3],16); }
+  else if (m3) { r = parseInt(m3[1]+m3[1],16); g = parseInt(m3[2]+m3[2],16); b = parseInt(m3[3]+m3[3],16); }
+  else         { return hex; }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function formatNum(n) { return new Intl.NumberFormat('en-GB').format(n); }
+
+function togglePlaceholderBadge(show) {
+  const badge = document.getElementById('placeholder-badge');
+  if (badge) badge.style.display = show ? '' : 'none';
+}
+
+// Sub-line reflects the active detail level (continents vs countries).
+function updateSubtitle() {
+  const sub = document.getElementById('page-sub');
+  if (!sub) return;
+  sub.textContent = granularity === 'region'
+    ? 'Each arc links two continents; its thickness is the number of artist collaborations that cross between them. Click an arc to see which artists.'
+    : 'Each arc links two countries; its thickness is the number of artist collaborations between them. Click an arc to see which artists.';
+}
+
+function showMessage(container, title, desc) {
+  container.innerHTML = `
+    <div class="empty-state" style="min-height:360px;">
+      <p class="empty-state-title">${title}</p>
+      <p class="empty-state-desc">${desc}</p>
+    </div>`;
 }

@@ -30,7 +30,8 @@
       <li><a href="cultural-flow.html"      class="nav-link">Cultural Flow</a></li>
       <li><a href="resonance-timeline.html" class="nav-link active" aria-current="page">Resonance Timeline</a></li>
       <li><a href="genre-forecast.html"     class="nav-link">Page 3</a></li>
-      <li><a href="network-map.html"        class="nav-link">Page 4</a></li>
+      <li><a href="network-map.html"        class="nav-link">Global Collabs</a></li>
+      <li><a href="sankey.html"             class="nav-link">Sankey</a></li>
     </ul>
 
     <button class="theme-toggle" aria-label="Toggle light/dark theme" title="Toggle Theme">
@@ -99,8 +100,8 @@
         </div>
 
         <div class="filter-group" role="group" aria-labelledby="lbl-region">
-          <span class="filter-group-label" id="lbl-region">Region</span>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="europe"   checked /> Europe</label>
+          <span class="filter-group-label" id="lbl-region">Region <span style="font-weight:400;opacity:0.6;font-size:0.85em;">(Europe = baseline)</span></span>
+          <label class="filter-item is-locked" title="Europe is the comparison baseline on this page."><input type="checkbox" data-filter-group="region" value="europe" checked disabled style="display:none;" /> Europe <span style="margin-left:auto;font-size:0.75em;opacity:0.65;text-transform:uppercase;letter-spacing:0.05em;">baseline</span></label>
           <label class="filter-item"><input type="checkbox" data-filter-group="region" value="americas" checked /> Americas</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="region" value="africa"   checked /> Africa</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="region" value="asia"     checked /> Asia</label>

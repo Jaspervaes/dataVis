@@ -73,12 +73,12 @@ GENRE_NORM = {
 
 # Primary search tag → canonical Sankey genre
 SEARCH_GENRES = {
-    "pop":       "Pop",
-    "hip-hop":   "Hip-Hop",
-    "electronic":"Electronic",
+    # "pop":       "Pop",
+    # "hip-hop":   "Hip-Hop",
+    # "electronic":"Electronic",
     "r&b":       "R&B",
-    "afrobeats": "Afrobeats",
-    "latin":     "Latin",
+    # "afrobeats": "Afrobeats",
+    # "latin":     "Latin",
 }
 
 # Fetch more records by year window so all years are represented.
@@ -102,125 +102,77 @@ def normalise_genre(tags, fallback):
             return g
     return fallback
 
-# ── Phase 1: collect recordings per genre ────────────────────────────────────
+# ── Phase 1: collect recordings (improved, more representative) ──────────────
 print("=== Phase 1: Fetching recordings ===")
+
 raw_tracks = []
 
+seen_recordings = set()  # prevents duplicates across queries
+
 for tag, genre_name in SEARCH_GENRES.items():
+
     print(f"\n  Genre: {genre_name} (tag: {tag})")
-    for year in range(YEAR_START, YEAR_END + 1, YEAR_STEP):
-        year_query = f'date:[{year} TO {year}]'
-        for offset in range(0, MAX_OFFSET, QUERY_LIMIT):
-            try:
-                data = mb_get("recording", {
-                    "query": f'tag:"{tag}" AND {year_query}',
-                    "limit": QUERY_LIMIT,
-                    "offset": offset,
-                })
-                recs = data.get("recordings", [])
-                print(f"    year={year} offset={offset} -> {len(recs)} recordings")
-                if not recs:
-                    break
-                for rec in recs:
-                    ac = rec.get("artist-credit", [{}])[0]
-                    if isinstance(ac, str):
-                        continue
-                    artist = ac.get("artist", {})
-                    artist_id   = artist.get("id", "")
-                    artist_name = artist.get("name", "")
-                    if not artist_id:
-                        continue
-                    date = rec.get("first-release-date", "")
-                    year = date[:4] if date and date[:4].isdigit() else ""
-                    rec_tags = [t["name"] for t in rec.get("tags", [])]
-                    raw_tracks.append({
-                        "track_id":   rec["id"],
-                        "title":      rec.get("title", ""),
-                        "artist_id":  artist_id,
-                        "artist_name":artist_name,
-                        "genre":      normalise_genre(rec_tags, genre_name),
-                        "year":       year,
-                    })
-            except Exception as e:
-                print(f"    ERROR year={year} offset={offset}: {e}")
+
+    # NOTE: no year slicing anymore → MUCH better coverage
+    base_query = f'tag:"{tag}"'
+
+    for offset in range(0, 40000, QUERY_LIMIT):
+
+        try:
+            data = mb_get("recording", {
+                "query": base_query,
+                "limit": QUERY_LIMIT,
+                "offset": offset,
+            })
+
+            recs = data.get("recordings", [])
+
+            print(f"    offset={offset} -> {len(recs)} recordings")
+
+            if not recs:
                 break
+
+            for rec in recs:
+
+                rec_id = rec.get("id")
+                if not rec_id or rec_id in seen_recordings:
+                    continue
+                seen_recordings.add(rec_id)
+
+                ac = rec.get("artist-credit", [{}])[0]
+                if isinstance(ac, str):
+                    continue
+
+                artist = ac.get("artist", {})
+                artist_id = artist.get("id", "")
+                artist_name = artist.get("name", "")
+
+                if not artist_id:
+                    continue
+
+                # safer year extraction (keep as-is if missing)
+                date = rec.get("first-release-date", "")
+                year = date[:4] if date and date[:4].isdigit() else ""
+
+                rec_tags = [t["name"] for t in rec.get("tags", [])]
+
+                raw_tracks.append({
+                    "track_id": rec_id,
+                    "title": rec.get("title", ""),
+                    "artist_id": artist_id,
+                    "artist_name": artist_name,
+                    "genre": normalise_genre(rec_tags, genre_name),
+                    "year": year,
+                })
+
+        except Exception as e:
+            print(f"    ERROR offset={offset}: {e}")
+            break
 
 print(f"\nTotal raw tracks collected: {len(raw_tracks)}")
 
 # Write raw tracks to a checkpoint file for debugging/inspection
-raw_tracks_file = os.path.join(os.path.dirname(__file__), "raw-tracks.json")
+raw_tracks_file = os.path.join(os.path.dirname(__file__), "raw-tracks-2.json")
 with open(raw_tracks_file, "w", encoding="utf-8") as f:
     json.dump(raw_tracks, f, indent=2, ensure_ascii=False)
 print(f"Raw tracks checkpoint written to {raw_tracks_file}")
-
-# ── Phase 2: lookup artist countries ─────────────────────────────────────────
-print("\n=== Phase 2: Looking up artist countries ===")
-unique_artists = {}
-for t in raw_tracks:
-    if t["artist_id"] not in unique_artists:
-        unique_artists[t["artist_id"]] = {"name": t["artist_name"], "country": ""}
-
-print(f"Unique artists to look up: {len(unique_artists)}")
-
-for i, (aid, info) in enumerate(unique_artists.items()):
-    if i % 50 == 0:
-        print(f"  {i}/{len(unique_artists)} artists processed…")
-    try:
-        data   = mb_get(f"artist/{aid}", {})
-        info["country"] = data.get("country", "")
-    except Exception as e:
-        print(f"  ERROR looking up {aid}: {e}")
-
-# ── Phase 3: build and write CSV ─────────────────────────────────────────────
-print("\n=== Phase 3: Writing CSV ===")
-rows = []
-skipped_no_region = 0
-
-for t in raw_tracks:
-    aid     = t["artist_id"]
-    country = unique_artists.get(aid, {}).get("country", "")
-    region  = COUNTRY_TO_REGION.get(country, "")
-    if not region:
-        skipped_no_region += 1
-        continue
-    if not t["year"]:
-        continue
-    rows.append({
-        "track_id":      t["track_id"],
-        "artist_name":   t["artist_name"],
-        "artist_country":country,
-        "genre":         t["genre"],
-        "year":          t["year"],
-        "energy":        "",
-        "valence":       "",
-        "tempo":         "",
-        "danceability":  "",
-        "popularity":    "",
-    })
-
-print(f"Rows with valid region: {len(rows)}")
-print(f"Skipped (no region mapping): {skipped_no_region}")
-
-with open(OUT_FILE, "w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=[
-        "track_id","artist_name","artist_country","genre",
-        "year","energy","valence","tempo","danceability","popularity"
-    ])
-    writer.writeheader()
-    writer.writerows(rows)
-
-print(f"\nDone. Written {len(rows)} rows to {OUT_FILE}")
-
-# Quick summary
-from collections import Counter
-region_counts = Counter(r["artist_country"] for r in rows)
-genre_counts  = Counter(r["genre"] for r in rows)
-print("\nRegion breakdown:")
-region_totals = defaultdict(int)
-for country, count in region_counts.items():
-    region_totals[COUNTRY_TO_REGION[country]] += count
-for region, count in sorted(region_totals.items()):
-    print(f"  {region}: {count}")
-print("\nGenre breakdown:")
-for genre, count in genre_counts.most_common():
-    print(f"  {genre}: {count}")

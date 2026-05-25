@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Page 4 — The Roots of Rhythm</title>
+  <title>Global Collabs — The Roots of Rhythm</title>
+  <meta name="description" content="3D globe of collaborations between European and non-European music artists." />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
 
   <link rel="stylesheet" href="../css/variables.css" />
@@ -13,6 +14,112 @@
 
   <script src="../js/theme-toggle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://unpkg.com/globe.gl@2.46.1/dist/globe.gl.min.js"></script>
+
+  <style>
+    /* Pinned arc detail panel — mirrors the floating tooltip but stays open. */
+    .arc-detail-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 5;
+      display: none;
+      width: 260px;            /* fixed — long content wraps instead of widening */
+      background: var(--bg-elevated);
+      border: 1px solid var(--rule-light);
+      border-top: 2px solid var(--acid);
+      padding: var(--sp-3) var(--sp-4);
+      box-shadow: var(--shadow-md);
+    }
+    .arc-detail-panel .tooltip-title { overflow-wrap: anywhere; }
+    /* Let the pair name wrap to extra lines; keep the number pinned top-right. */
+    .arc-detail-panel .tooltip-row { align-items: flex-start; }
+    .arc-detail-panel .tooltip-row > span:first-child {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .arc-detail-panel .tooltip-value { flex: 0 0 auto; min-width: 1.6em; }
+    .arc-detail-close {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 5px;
+    }
+    .arc-detail-close:hover { color: var(--text-primary); }
+    .arc-detail-panel { max-height: 60vh; overflow-y: auto; }
+    .arc-detail-panel .tooltip-title { padding-right: 18px; }
+    .arc-detail-subhead {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: var(--tracking-wider);
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .arc-detail-more {
+      margin-top: 6px;
+      font-family: var(--font-body);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .pair-loc { color: var(--text-muted); }
+    .pair-row { cursor: pointer; padding: 2px 4px; margin: 0 -4px; }
+    .pair-row:hover { background: var(--bg-surface); }
+    .arc-detail-hint { color: var(--text-muted); font-size: 9px; text-transform: none; letter-spacing: normal; }
+    .arc-detail-back {
+      display: inline-block;
+      background: none;
+      border: none;
+      padding: 0 0 6px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .arc-detail-back:hover { color: var(--text-primary); }
+
+    /* HUD overlays anchored to the globe corners. */
+    .globe-overlay { position: absolute; z-index: 4; }
+    .globe-overlay--tl { top: 14px; left: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .globe-overlay--bl { bottom: 14px; left: 14px; }
+
+    /* Compact insight cards for the corner HUD. */
+    #insight-overlay .insight-card {
+      min-width: 0;
+      width: 168px;
+      padding: 7px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+    }
+    #insight-overlay .insight-card-value { font-size: var(--size-lg); }
+    #insight-overlay .insight-card-desc { font-size: 10px; }
+
+    /* Colour swatch on each Region filter — the filter list IS the legend. */
+    .region-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      flex-shrink: 0;
+      vertical-align: middle;
+    }
+    .filter-group-hint {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: var(--tracking-wide);
+      text-transform: none;
+      color: var(--text-muted);
+    }
+  </style>
 </head>
 <body>
 
@@ -29,7 +136,8 @@
       <li><a href="cultural-flow.html"      class="nav-link">Cultural Flow</a></li>
       <li><a href="resonance-timeline.html" class="nav-link">Resonance Timeline</a></li>
       <li><a href="genre-forecast.html"     class="nav-link">Page 3</a></li>
-      <li><a href="network-map.html"        class="nav-link active" aria-current="page">Page 4</a></li>
+      <li><a href="network-map.html"        class="nav-link active" aria-current="page">Global Collabs</a></li>
+      <li><a href="sankey.html"             class="nav-link">Sankey</a></li>
     </ul>
 
     <button class="theme-toggle" aria-label="Toggle light/dark theme" title="Toggle Theme">
@@ -65,12 +173,31 @@
         </div>
 
         <div class="filter-group" role="group" aria-labelledby="lbl-region">
-          <span class="filter-group-label" id="lbl-region">Region</span>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="europe"        checked /> Europe</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="north-america" checked /> North America</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="latin-america" checked /> Latin America</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="africa"        checked /> Africa</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="asia"          checked /> Asia</label>
+          <span class="filter-group-label" id="lbl-region">Region <span class="filter-group-hint">colour = on globe</span></span>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="europe"   checked /> <span class="region-dot" style="background:var(--acid)"></span> Europe</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="americas" checked /> <span class="region-dot" style="background:var(--red)"></span> Americas</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="africa"   checked /> <span class="region-dot" style="background:var(--amber)"></span> Africa</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="asia"     checked /> <span class="region-dot" style="background:var(--blue-cool)"></span> Asia</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="oceania"  checked /> <span class="region-dot" style="background:var(--rose)"></span> Oceania</label>
+        </div>
+
+        <div class="filter-group" role="radiogroup" aria-labelledby="lbl-detail">
+          <span class="filter-group-label" id="lbl-detail">Detail level</span>
+          <label class="filter-item"><input type="radio" name="granularity" value="region"  checked /> Region <span class="filter-group-hint">overview</span></label>
+          <label class="filter-item"><input type="radio" name="granularity" value="country" /> Country</label>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-group-label">Focus</span>
+          <label class="filter-item"><input type="checkbox" id="filter-europe-only" /> Europe ↔ World only</label>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-group-label">Minimum collaborations <span class="filter-group-hint">per route</span></span>
+          <div class="range-group">
+            <input type="range" id="filter-min-collabs" min="1" max="10" value="1" step="1" aria-label="Minimum collaborations per route" />
+            <span class="range-value-display" id="filter-min-collabs-display">1+</span>
+          </div>
         </div>
 
         <div class="active-pills" id="active-pills" aria-label="Active filters" aria-live="polite"></div>
@@ -87,25 +214,54 @@
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <a href="../index.html" class="breadcrumb-link">Home</a>
         <span class="breadcrumb-sep" aria-hidden="true">/</span>
-        <span class="breadcrumb-current" aria-current="page">Page 4</span>
+        <span class="breadcrumb-current" aria-current="page">Global Collabs</span>
       </nav>
 
       <header class="page-header">
-        <h1 class="page-title">Page <span class="acid">4</span></h1>
+        <h1 class="page-title">Global <span class="acid">Collabs</span></h1>
+        <p class="page-sub" id="page-sub">Each arc links two continents; its thickness is the number of artist collaborations that cross between them. Click an arc to see which artists.</p>
+        <div id="placeholder-badge" style="display:none;margin-top:8px;padding:6px 10px;border:1px dashed var(--border);background:var(--bg-surface);color:var(--text-secondary);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;width:max-content;">
+          Placeholder data — real MusicBrainz fetch in progress
+        </div>
       </header>
 
-      <div class="empty-state" style="min-height:360px;">
-        <p class="empty-state-title">Implementation coming</p>
-        <p class="empty-state-desc">This visualisation will be added in a future iteration.</p>
+      <div id="viz-container"
+           role="img"
+           aria-label="3D globe of Europe to non-Europe artist collaborations"
+           style="width:100%;height:70vh;min-height:520px;position:relative;">
       </div>
+
+      <!-- Insight HUD — reparented into #viz-container by network-map.js after
+           the globe mounts (globe.gl clears the container's static children). -->
+      <div class="globe-overlay globe-overlay--tl" id="insight-overlay">
+        <div class="insight-card" id="card-collabs">
+          <span class="insight-card-value">—</span>
+          <span class="insight-card-desc">Collaborations shown</span>
+        </div>
+        <div class="insight-card" id="card-cross">
+          <span class="insight-card-value">—</span>
+          <span class="insight-card-desc">Cross-region pairs</span>
+        </div>
+        <div class="insight-card" id="card-top-artist">
+          <span class="insight-card-value">—</span>
+          <span class="insight-card-desc">Top European exporter</span>
+        </div>
+        <div class="insight-card" id="card-hub">
+          <span class="insight-card-value">—</span>
+          <span class="insight-card-desc">Most-connected partner abroad</span>
+        </div>
+      </div>
+
+      <p class="data-source">
+        Data: <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>
+        — pairwise artist credits derived from <code>data/artist-connections.csv</code> (run <code>python data/fetch_musicbrainz.py</code> to regenerate).
+        Country centroids: <code>data/country-coords.json</code>. Globe: <a href="https://globe.gl" target="_blank" rel="noopener">globe.gl</a> / Three.js.
+      </p>
 
     </main>
   </div>
 
   <script type="module" src="../js/main.js"></script>
-  <script type="module">
-    import { initFilters } from '../js/filters.js';
-    document.addEventListener('DOMContentLoaded', initFilters);
-  </script>
+  <script type="module" src="../js/pages/network-map.js"></script>
 </body>
 </html>
