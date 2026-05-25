@@ -27,13 +27,14 @@ const PLACEHOLDER_PATH = '../data/artist-connections-placeholder.csv';
 const COORDS_PATH      = '../data/country-coords.json';
 const WORLD_GEO_URL    = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson';
 
-// One anchor per continent — region-level arcs run between these points.
+// One anchor per region — region-level arcs run between these points.
 const REGION_ANCHORS = {
-  Europe:   { lat: 50,  lon: 10  },
-  Americas: { lat: 5,   lon: -75 },
-  Africa:   { lat: 2,   lon: 20  },
-  Asia:     { lat: 35,  lon: 100 },
-  Oceania:  { lat: -25, lon: 140 },
+  'Europe':        { lat: 50,  lon: 10  },
+  'North America': { lat: 45,  lon: -100 },
+  'Latin America': { lat: -10, lon: -60 },
+  'Africa':        { lat: 2,   lon: 20  },
+  'Asia':          { lat: 35,  lon: 100 },
+  'Oceania':       { lat: -25, lon: 140 },
 };
 
 let globe         = null;
@@ -50,11 +51,12 @@ let pinnedArc     = null;      // corridor kept open on click
 function regionColour(region) {
   const root = getComputedStyle(document.documentElement);
   const map = {
-    Europe:   root.getPropertyValue('--acid').trim()      || '#c8f000',
-    Americas: root.getPropertyValue('--red').trim()       || '#e5321c',
-    Africa:   root.getPropertyValue('--amber').trim()     || '#f0a830',
-    Asia:     root.getPropertyValue('--blue-cool').trim() || '#6aabf0',
-    Oceania:  root.getPropertyValue('--rose').trim()      || '#c47fa0',
+    'Europe':        root.getPropertyValue('--acid').trim()      || '#c8f000',
+    'North America': root.getPropertyValue('--red').trim()       || '#e5321c',
+    'Latin America': '#e07840',  // matches sankey/cultural-flow (no CSS token)
+    'Africa':        root.getPropertyValue('--amber').trim()     || '#f0a830',
+    'Asia':          root.getPropertyValue('--blue-cool').trim() || '#6aabf0',
+    'Oceania':       root.getPropertyValue('--rose').trim()      || '#c47fa0',
   };
   return map[region] || '#7c3aed';
 }
@@ -92,6 +94,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
   });
+
+  // Browsers restore the radio selection across reloads, so sync `granularity`
+  // to whatever is actually checked — otherwise the control and globe disagree.
+  const checkedGran = document.querySelector('input[name="granularity"]:checked');
+  if (checkedGran) granularity = checkedGran.value;
 
   let usingPlaceholder = false;
   try {

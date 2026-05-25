@@ -1,20 +1,24 @@
 """
 fetch_musicbrainz.py
-Fetches real track + artist data from the MusicBrainz API and writes
-spotify-tracks.csv for the Cultural Flow Sankey visualisation.
+Fetches real track + artist data from the MusicBrainz API and writes:
+  - spotify-tracks.csv         (one row per primary artist per track — Cultural Flow / Sankey)
+  - artist-connections.csv     (one row per collaborating-artist pair — Network Map page 4)
 
-Runtime: ~8-12 minutes (API rate limit: 1 req/sec).
+Runtime: ~8-12 minutes for Phase 1, plus Phase 2 country lookups (more artists when
+multi-credit extraction is on — expect 1-2 hours total at the 1 req/sec rate limit).
 """
 
 import requests, time, csv, json, os
 from collections import defaultdict
+from itertools import combinations
 
 MB_BASE   = "https://musicbrainz.org/ws/2/"
 HEADERS   = {
     "User-Agent": "DataVisKULeuven/1.0 (sofiebauwens3@gmail.com)",
     "Accept":     "application/json",
 }
-OUT_FILE  = os.path.join(os.path.dirname(__file__), "spotify-tracks.csv")
+OUT_FILE          = os.path.join(os.path.dirname(__file__), "spotify-tracks.csv")
+CONNECTIONS_FILE  = os.path.join(os.path.dirname(__file__), "artist-connections.csv")
 
 # ── Geography ────────────────────────────────────────────────────────────────
 COUNTRY_TO_REGION = {
@@ -26,13 +30,15 @@ COUNTRY_TO_REGION = {
     "RO":"Europe","GR":"Europe","RS":"Europe","HR":"Europe","IS":"Europe",
     "LU":"Europe","SK":"Europe","SI":"Europe","LV":"Europe","LT":"Europe",
     "EE":"Europe","BA":"Europe","MK":"Europe","ME":"Europe","AL":"Europe",
-    # Americas
-    "US":"Americas","CA":"Americas","BR":"Americas","MX":"Americas",
-    "CO":"Americas","AR":"Americas","CL":"Americas","PE":"Americas",
-    "VE":"Americas","CU":"Americas","JM":"Americas","TT":"Americas",
-    "DO":"Americas","PA":"Americas","EC":"Americas","BO":"Americas",
-    "UY":"Americas","PY":"Americas","GT":"Americas","HN":"Americas",
-    "CR":"Americas","SV":"Americas","NI":"Americas","HT":"Americas",
+    # North America (US + Canada; matches sankey/cultural-flow split)
+    "US":"North America","CA":"North America",
+    # Latin America (Mexico + Central America + Caribbean + South America)
+    "BR":"Latin America","MX":"Latin America",
+    "CO":"Latin America","AR":"Latin America","CL":"Latin America","PE":"Latin America",
+    "VE":"Latin America","CU":"Latin America","JM":"Latin America","TT":"Latin America",
+    "DO":"Latin America","PA":"Latin America","EC":"Latin America","BO":"Latin America",
+    "UY":"Latin America","PY":"Latin America","GT":"Latin America","HN":"Latin America",
+    "CR":"Latin America","SV":"Latin America","NI":"Latin America","HT":"Latin America",
     # Africa
     "NG":"Africa","ZA":"Africa","GH":"Africa","KE":"Africa","SN":"Africa",
     "CM":"Africa","TZ":"Africa","UG":"Africa","ET":"Africa","EG":"Africa",
@@ -122,13 +128,18 @@ for tag, genre_name in SEARCH_GENRES.items():
                 if not recs:
                     break
                 for rec in recs:
-                    ac = rec.get("artist-credit", [{}])[0]
-                    if isinstance(ac, str):
-                        continue
-                    artist = ac.get("artist", {})
-                    artist_id   = artist.get("id", "")
-                    artist_name = artist.get("name", "")
-                    if not artist_id:
+                    # Capture EVERY artist in the credit array (not just the first),
+                    # so we can derive collaboration pairs for the network map.
+                    credits = rec.get("artist-credit", [])
+                    artists = []
+                    for ac in credits:
+                        if isinstance(ac, str):
+                            continue  # join phrase like " & "
+                        a = ac.get("artist", {})
+                        aid, aname = a.get("id", ""), a.get("name", "")
+                        if aid:
+                            artists.append({"artist_id": aid, "artist_name": aname})
+                    if not artists:
                         continue
                     date = rec.get("first-release-date", "")
                     year = date[:4] if date and date[:4].isdigit() else ""
@@ -136,8 +147,10 @@ for tag, genre_name in SEARCH_GENRES.items():
                     raw_tracks.append({
                         "track_id":   rec["id"],
                         "title":      rec.get("title", ""),
-                        "artist_id":  artist_id,
-                        "artist_name":artist_name,
+                        # Primary artist kept for backwards-compat with spotify-tracks.csv.
+                        "artist_id":  artists[0]["artist_id"],
+                        "artist_name":artists[0]["artist_name"],
+                        "artists":    artists,
                         "genre":      normalise_genre(rec_tags, genre_name),
                         "year":       year,
                     })
@@ -154,11 +167,14 @@ with open(raw_tracks_file, "w", encoding="utf-8") as f:
 print(f"Raw tracks checkpoint written to {raw_tracks_file}")
 
 # ── Phase 2: lookup artist countries ─────────────────────────────────────────
+# Collect EVERY unique artist seen across all artist-credit arrays so that
+# collaborators (not just primaries) get country mappings.
 print("\n=== Phase 2: Looking up artist countries ===")
 unique_artists = {}
 for t in raw_tracks:
-    if t["artist_id"] not in unique_artists:
-        unique_artists[t["artist_id"]] = {"name": t["artist_name"], "country": ""}
+    for a in t.get("artists", [{"artist_id": t["artist_id"], "artist_name": t["artist_name"]}]):
+        if a["artist_id"] and a["artist_id"] not in unique_artists:
+            unique_artists[a["artist_id"]] = {"name": a["artist_name"], "country": ""}
 
 print(f"Unique artists to look up: {len(unique_artists)}")
 
@@ -210,6 +226,84 @@ with open(OUT_FILE, "w", newline="", encoding="utf-8") as f:
     writer.writerows(rows)
 
 print(f"\nDone. Written {len(rows)} rows to {OUT_FILE}")
+
+# ── Phase 4: build artist-connections.csv (collaboration pairs) ──────────────
+# One row per unordered (artist_a, artist_b) pair. collaboration_count is the
+# number of tracks they appear on together; year is the earliest co-credit year.
+print("\n=== Phase 4: Building artist-connections.csv ===")
+
+pair_records = {}  # key: tuple(sorted [a_id, b_id]) -> dict
+skipped_single = skipped_no_region_pair = 0
+
+for t in raw_tracks:
+    artists = t.get("artists", [])
+    if len(artists) < 2:
+        skipped_single += 1
+        continue
+    year_int = int(t["year"]) if t["year"] and t["year"].isdigit() else None
+    for a, b in combinations(artists, 2):
+        a_id, b_id = a["artist_id"], b["artist_id"]
+        if a_id == b_id:
+            continue
+        a_country = unique_artists.get(a_id, {}).get("country", "")
+        b_country = unique_artists.get(b_id, {}).get("country", "")
+        a_region  = COUNTRY_TO_REGION.get(a_country, "")
+        b_region  = COUNTRY_TO_REGION.get(b_country, "")
+        if not a_region or not b_region:
+            skipped_no_region_pair += 1
+            continue
+        # Canonicalise pair order so (a,b) and (b,a) collapse.
+        if a_id > b_id:
+            a_id, b_id = b_id, a_id
+            a, b = b, a
+            a_country, b_country = b_country, a_country
+            a_region, b_region   = b_region, a_region
+        key = (a_id, b_id)
+        rec = pair_records.get(key)
+        if rec is None:
+            pair_records[key] = {
+                "artist_id":           a_id,
+                "artist_name":         a["artist_name"],
+                "country":             a_country,
+                "region":              a_region,
+                "collaborator_id":     b_id,
+                "collaborator_name":   b["artist_name"],
+                "collab_country":      b_country,
+                "collab_region":       b_region,
+                "collaboration_count": 1,
+                "year":                year_int if year_int is not None else "",
+            }
+        else:
+            rec["collaboration_count"] += 1
+            if year_int is not None and (rec["year"] == "" or year_int < rec["year"]):
+                rec["year"] = year_int
+
+print(f"Tracks with only one credited artist (skipped): {skipped_single}")
+print(f"Pairs dropped for missing region: {skipped_no_region_pair}")
+print(f"Unique collaboration pairs: {len(pair_records)}")
+
+with open(CONNECTIONS_FILE, "w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=[
+        "artist_id","artist_name","country","region",
+        "collaborator_id","collaborator_name","collab_country","collab_region",
+        "collaboration_count","year",
+    ])
+    writer.writeheader()
+    writer.writerows(pair_records.values())
+
+print(f"Done. Written {len(pair_records)} pairs to {CONNECTIONS_FILE}")
+
+# Cross-region sanity check: the network map is meaningless without these.
+cross_region = sum(
+    1 for r in pair_records.values()
+    if r["region"] != r["collab_region"]
+)
+europe_cross = sum(
+    1 for r in pair_records.values()
+    if (r["region"] == "Europe") != (r["collab_region"] == "Europe")
+)
+print(f"  Cross-region pairs: {cross_region}")
+print(f"  Europe ↔ non-Europe pairs: {europe_cross}")
 
 # Quick summary
 from collections import Counter
