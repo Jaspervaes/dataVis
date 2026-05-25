@@ -3,13 +3,217 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Page 3 — The Roots of Rhythm</title>
+  <title>Genre Forecast — The Roots of Rhythm</title>
+  <meta name="description" content="Global genre share 1986–2030 with European taste divergence overlay." />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
 
   <link rel="stylesheet" href="../css/variables.css" />
   <link rel="stylesheet" href="../css/base.css" />
   <link rel="stylesheet" href="../css/layout.css" />
   <link rel="stylesheet" href="../css/components.css" />
+
+  <style>
+    .section-header {
+      margin: var(--sp-8) 0 var(--sp-2);
+      display: flex;
+      align-items: baseline;
+      gap: var(--sp-4);
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: var(--sp-2);
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .section-meta {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .survivorship-note {
+      font-size: 0.72rem;
+      font-family: var(--font-body);
+      color: var(--text-secondary);
+      margin: var(--sp-3) 0 var(--sp-3);
+      letter-spacing: 0.01em;
+      line-height: 1.55;
+      max-width: 64ch;
+    }
+    #viz-eu {
+      min-height: 280px;
+      width: 100%;
+    }
+    .viz-row {
+      display: grid;
+      grid-template-columns: 1.85fr 1fr;
+      gap: var(--sp-6);
+      align-items: stretch;
+    }
+    @media (max-width: 1100px) {
+      .viz-row { grid-template-columns: 1fr; }
+    }
+    .viz-row > div {
+      display: flex;
+      flex-direction: column;
+      min-height: 580px;
+    }
+    .viz-row .viz-wrapper {
+      max-width: none;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    #viz-global {
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Hitlist panel ───────────────────────────────────────── */
+    #viz-hitlist {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: var(--sp-3) var(--sp-4) var(--sp-4);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    #viz-hitlist .empty-state { flex: 1; }
+
+    /* ── Lifecycle Map ───────────────────────────────────────── */
+    #viz-quadrant {
+      width: 100%;
+      min-height: 540px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: var(--sp-4);
+      position: relative;
+    }
+    #viz-quadrant::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 28px; height: 2px;
+      background: var(--acid);
+    }
+
+    /* ── Lifecycle meta row (explanation + toggle) ───────────── */
+    .lifecycle-meta {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-6);
+      margin: var(--sp-3) 0;
+    }
+    .lifecycle-meta .survivorship-note { flex: 1; margin: 0; }
+    .toggle-btn {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--rule);
+      padding: var(--sp-2) var(--sp-3);
+      cursor: pointer;
+      transition: all var(--t-fast);
+      white-space: nowrap;
+      flex-shrink: 0;
+      align-self: flex-start;
+      line-height: 1;
+    }
+    .toggle-btn:hover {
+      border-color: var(--acid);
+      color: var(--text-primary);
+    }
+    .toggle-btn.active {
+      background: var(--acid-dim);
+      border-color: var(--acid-border);
+      color: var(--acid);
+    }
+    .toggle-btn .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: currentColor;
+      margin-right: 6px;
+      vertical-align: middle;
+      opacity: 0.5;
+    }
+    .toggle-btn.active .dot { opacity: 1; }
+    #viz-hitlist::before {
+      /* subtle top-left tick mark - hard edge, design language */
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 28px; height: 2px;
+      background: var(--acid);
+    }
+    .hitlist-row {
+      display: grid;
+      grid-template-columns: 78px 1fr 82px;
+      gap: var(--sp-3);
+      align-items: center;
+      padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-3);
+      border-bottom: 1px solid var(--rule);
+      position: relative;
+      transition: background var(--t-fast);
+    }
+    .hitlist-row:last-child { border-bottom: none; }
+    .hitlist-row:hover {
+      background: rgba(200, 240, 0, 0.025);
+    }
+    .hitlist-row.rising::before,
+    .hitlist-row.falling::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 12%; bottom: 12%;
+      width: 2px;
+    }
+    .hitlist-row.rising::before  { background: var(--acid); }
+    .hitlist-row.falling::before { background: var(--red); opacity: 0.55; }
+
+    .hitlist-genre {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+    .hitlist-sub {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      display: block;
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+    .hitlist-change {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      letter-spacing: 0.03em;
+      text-align: right;
+      line-height: 1;
+    }
+    .hitlist-change-sub {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-align: right;
+      display: block;
+      margin-top: 6px;
+    }
+  </style>
 
   <script src="../js/theme-toggle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
@@ -28,7 +232,7 @@
     <ul class="nav-links" role="list">
       <li><a href="cultural-flow.html"      class="nav-link">Cultural Flow</a></li>
       <li><a href="resonance-timeline.html" class="nav-link">Resonance Timeline</a></li>
-      <li><a href="genre-forecast.html"     class="nav-link active" aria-current="page">Page 3</a></li>
+      <li><a href="genre-forecast.html"     class="nav-link active" aria-current="page">Genre Forecast</a></li>
       <li><a href="network-map.html"        class="nav-link">Page 4</a></li>
     </ul>
 
@@ -55,22 +259,26 @@
       <div class="sidebar-body">
 
         <div class="filter-group">
-          <span class="filter-group-label">Decade Range</span>
+          <span class="filter-group-label">Year Range</span>
           <div class="range-group">
-            <input type="range" id="filter-decade-start" min="1986" max="2025" value="1986" step="1" aria-label="Start year" />
+            <input type="range" id="filter-decade-start" min="1986" max="2025" value="2010" step="1" aria-label="Start year" />
             <input type="range" id="filter-decade-end"   min="1986" max="2025" value="2025" step="1" aria-label="End year" />
-            <span class="range-value-display" id="filter-decade-display">1986 – 2025</span>
+            <span class="range-value-display" id="filter-decade-display">2010 – 2025</span>
           </div>
           <div class="range-track-labels"><span>1986</span><span>2025</span></div>
         </div>
 
-        <div class="filter-group" role="group" aria-labelledby="lbl-region">
-          <span class="filter-group-label" id="lbl-region">Region</span>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="europe"        checked /> Europe</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="north-america" checked /> North America</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="latin-america" checked /> Latin America</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="africa"        checked /> Africa</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="asia"          checked /> Asia</label>
+        <div class="filter-group" role="group" aria-labelledby="lbl-genre">
+          <span class="filter-group-label" id="lbl-genre">Genres</span>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Pop"        checked /><span class="filter-swatch" style="background:var(--acid)"></span> Pop</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Hip-Hop"    checked /><span class="filter-swatch" style="background:#e5321c"></span> Hip-Hop</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Rock"       checked /><span class="filter-swatch" style="background:#f0ebe0"></span> Rock</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Electronic" checked /><span class="filter-swatch" style="background:#f0a830"></span> Electronic</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="R&amp;B"    checked /><span class="filter-swatch" style="background:#c47fa0"></span> R&amp;B</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Latin"      checked /><span class="filter-swatch" style="background:#6aabf0"></span> Latin</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Country"    checked /><span class="filter-swatch" style="background:#7ec87e"></span> Country</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Jazz"       checked /><span class="filter-swatch" style="background:#c8a06a"></span> Jazz</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Classical"  checked /><span class="filter-swatch" style="background:#a0a0c0"></span> Classical</label>
         </div>
 
         <div class="active-pills" id="active-pills" aria-label="Active filters" aria-live="polite"></div>
@@ -87,25 +295,70 @@
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <a href="../index.html" class="breadcrumb-link">Home</a>
         <span class="breadcrumb-sep" aria-hidden="true">/</span>
-        <span class="breadcrumb-current" aria-current="page">Page 3</span>
+        <span class="breadcrumb-current" aria-current="page">Genre Forecast</span>
       </nav>
 
       <header class="page-header">
-        <h1 class="page-title">Page <span class="acid">3</span></h1>
+        <h1 class="page-title">Genre <span class="acid">Forecast</span></h1>
+        <p class="page-subtitle">Global genre share, 1986–2035 · European taste divergence overlay, 2023–2025.</p>
       </header>
 
-      <div class="empty-state" style="min-height:360px;">
-        <p class="empty-state-title">Implementation coming</p>
-        <p class="empty-state-desc">This visualisation will be added in a future iteration.</p>
+      <!-- Side-by-side: long-term forecast + short-term hitlist -->
+      <div class="viz-row">
+
+        <div>
+          <div class="section-header">
+            <h2 class="section-title">Global Genre Share</h2>
+            <span class="section-meta">1986 – 2035 · dashed = forecast</span>
+          </div>
+          <p class="survivorship-note">Share of still-popular catalog tracks by release year (Spotify, 1986–2024) + 10-year ensemble projection 2026–2035. Bands widen with horizon — uncertainty grows the further ahead you look.</p>
+          <div class="viz-wrapper">
+            <div id="viz-global" role="img" aria-label="Genre share trend chart loading">
+              <div class="empty-state">
+                <div class="skeleton skeleton-block" style="height:460px;"></div>
+              </div>
+            </div>
+            <span class="viz-sample-badge" id="data-badge">Sample Data</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-header">
+            <h2 class="section-title">Next 6 Months — EU Chart Momentum</h2>
+            <span class="section-meta">Short-term hitlist forecast</span>
+          </div>
+          <p class="survivorship-note">EU monthly chart momentum (last 6 mo.) projected forward 6 months, nudged by the most-correlated region's recent trend. Biggest risers at the top, biggest fallers at the bottom.</p>
+          <div id="viz-hitlist" role="img" aria-label="Short-term EU chart momentum forecast">
+            <div class="empty-state">
+              <div class="skeleton skeleton-block" style="height:460px;"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Genre Lifecycle Map -->
+      <div class="section-header">
+        <h2 class="section-title">Genre Lifecycle Map</h2>
+        <span class="section-meta">Where each genre sits today · arrow shows where it's heading</span>
+      </div>
+      <div class="lifecycle-meta">
+        <p class="survivorship-note">Four corners, four fates. <strong style="color:var(--text-primary)">X-axis</strong> = how big the genre is now. <strong style="color:var(--text-primary)">Y-axis</strong> = whether it's rising or falling. Combines the long-term catalog trend with the short-term EU chart pulse, weighted by which region currently moves in lockstep with Europe.</p>
+        <button id="toggle-history" class="toggle-btn" type="button">
+          <span class="dot"></span>SHOW HISTORY
+        </button>
+      </div>
+
+      <div id="viz-quadrant" role="img" aria-label="Genre lifecycle trajectory map">
+        <div class="empty-state">
+          <div class="skeleton skeleton-block" style="height:480px;"></div>
+        </div>
       </div>
 
     </main>
   </div>
 
   <script type="module" src="../js/main.js"></script>
-  <script type="module">
-    import { initFilters } from '../js/filters.js';
-    document.addEventListener('DOMContentLoaded', initFilters);
-  </script>
+  <script type="module" src="../js/pages/genre-forecast.js"></script>
 </body>
 </html>

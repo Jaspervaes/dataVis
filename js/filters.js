@@ -26,6 +26,7 @@ const _state = {
   audioFeatures: ['energy', 'valence', 'tempo', 'danceability'],
   crisisTypes: ['economic', 'armed_conflict', 'pandemic'],
   regions: ['europe', 'americas', 'africa', 'asia', 'oceania'],
+  genres: ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Jazz','Country','Afrobeats','Classical'],
 };
 
 /**
@@ -34,7 +35,8 @@ const _state = {
  */
 export function getFilters() {
   return { ..._state, audioFeatures: [..._state.audioFeatures],
-    crisisTypes: [..._state.crisisTypes], regions: [..._state.regions] };
+    crisisTypes: [..._state.crisisTypes], regions: [..._state.regions],
+    genres: [..._state.genres] };
 }
 
 /**
@@ -46,6 +48,7 @@ export function initFilters() {
   _bindCheckboxGroup('audio-feature', _state.audioFeatures, 'audioFeatures');
   _bindCheckboxGroup('crisis-type',   _state.crisisTypes,   'crisisTypes');
   _bindCheckboxGroup('region',        _state.regions,       'regions');
+  _bindCheckboxGroup('genre',         _state.genres,        'genres');
   _bindResetButton();
   _renderPills();
 }
@@ -112,6 +115,7 @@ function _bindResetButton() {
     _state.audioFeatures = ['energy', 'valence', 'tempo', 'danceability'];
     _state.crisisTypes   = ['economic', 'armed_conflict', 'pandemic'];
     _state.regions       = ['europe', 'americas', 'africa', 'asia', 'oceania'];
+    _state.genres        = ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Jazz','Country','Afrobeats','Classical'];
 
     // Re-sync DOM checkboxes
     document.querySelectorAll('[data-filter-group]').forEach(cb => {
@@ -119,6 +123,7 @@ function _bindResetButton() {
       if (group === 'audio-feature') cb.checked = true;
       if (group === 'crisis-type')   cb.checked = true;
       if (group === 'region')        cb.checked = true;
+      if (group === 'genre')         cb.checked = true;
     });
 
     // Re-sync sliders
