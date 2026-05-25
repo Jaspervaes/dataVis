@@ -49,8 +49,7 @@ const FONT_STACK  = 'Inter, system-ui, sans-serif';
 const CRISIS_PRIORITY = { pandemic: 3, armed_conflict: 2, economic: 1 };
 
 // ISO-2 country → sidebar region key. Mirrors COUNTRY_TO_REGION in
-// data/fetch_musicbrainz.py but flattens the Americas (the sidebar
-// here uses europe/americas/africa/asia/oceania, not the split scheme).
+// data/fetch_musicbrainz.py (lowercased for the JS side).
 const COUNTRY_TO_REGION = {
   GB:'europe',DE:'europe',FR:'europe',SE:'europe',NO:'europe',NL:'europe',
   BE:'europe',IT:'europe',ES:'europe',PT:'europe',DK:'europe',FI:'europe',
@@ -59,13 +58,14 @@ const COUNTRY_TO_REGION = {
   IS:'europe',LU:'europe',SK:'europe',SI:'europe',LV:'europe',LT:'europe',
   EE:'europe',BA:'europe',MK:'europe',ME:'europe',AL:'europe',BG:'europe',
   CY:'europe',MT:'europe',MD:'europe',BY:'europe',
-  US:'americas',CA:'americas',MX:'americas',BR:'americas',CO:'americas',
-  AR:'americas',CL:'americas',PE:'americas',VE:'americas',CU:'americas',
-  JM:'americas',TT:'americas',DO:'americas',PA:'americas',EC:'americas',
-  BO:'americas',UY:'americas',PY:'americas',GT:'americas',HN:'americas',
-  CR:'americas',SV:'americas',NI:'americas',HT:'americas',PR:'americas',
-  BS:'americas',BB:'americas',GY:'americas',VC:'americas',VG:'americas',
-  VI:'americas',
+  US:'north america',CA:'north america',
+  MX:'latin america',BR:'latin america',CO:'latin america',
+  AR:'latin america',CL:'latin america',PE:'latin america',VE:'latin america',CU:'latin america',
+  JM:'latin america',TT:'latin america',DO:'latin america',PA:'latin america',EC:'latin america',
+  BO:'latin america',UY:'latin america',PY:'latin america',GT:'latin america',HN:'latin america',
+  CR:'latin america',SV:'latin america',NI:'latin america',HT:'latin america',PR:'latin america',
+  BS:'latin america',BB:'latin america',GY:'latin america',VC:'latin america',VG:'latin america',
+  VI:'latin america',
   NG:'africa',ZA:'africa',GH:'africa',KE:'africa',SN:'africa',CM:'africa',
   TZ:'africa',UG:'africa',ET:'africa',EG:'africa',MA:'africa',TN:'africa',
   CI:'africa',ML:'africa',CD:'africa',AO:'africa',MZ:'africa',ZW:'africa',
@@ -657,7 +657,28 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
     });
   });
 
-  const regionsSelected = filters.regions;
+  const REGION_COLORS = {
+    europe:           '#c8f000',
+    'north america':  '#e5321c',
+    'latin america':  '#e07840',
+    africa:           '#f0a830',
+    asia:             '#6aabf0',
+    oceania:          '#82d4be',
+  };
+  const REGION_LABELS = {
+    europe:           'Europe',
+    'north america':  'North America',
+    'latin america':  'Latin America',
+    africa:           'Africa',
+    asia:             'Asia',
+    oceania:          'Oceania',
+  };
+
+  // filters.js seeds its default state from a shared list and may include
+  // region keys this page doesn't model (e.g. the legacy 'americas' bucket
+  // that we've now split into north/latin). Drop anything we don't have a
+  // label for so it doesn't render as a ghost row.
+  const regionsSelected = filters.regions.filter(r => REGION_LABELS[r]);
   const regionStats = regionsSelected.map(region => {
     const tracks = rawMergedTracks.filter(t => t.region === region && +t.year === year);
     const valid  = tracks.filter(t => Number.isFinite(+t[featureForRegion]));
@@ -676,17 +697,6 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
     regionFootEl.innerHTML = '';
     return;
   }
-
-  const REGION_COLORS = {
-    europe:   '#c8f000',
-    americas: '#e5321c',
-    africa:   '#f0a830',
-    asia:     '#6aabf0',
-    oceania:  '#82d4be',
-  };
-  const REGION_LABELS = {
-    europe:'Europe', americas:'Americas', africa:'Africa', asia:'Asia', oceania:'Oceania',
-  };
 
   const fmtVal = v => isTempo ? `${(v * TEMPO_NORM).toFixed(0)} BPM` : `${(v * 100).toFixed(1)}%`;
   const fmtDelta = d => {
