@@ -52,7 +52,7 @@ No build step. No npm install. No bundler. All dependencies load via CDN.
 | Cultural Flow | `pages/cultural-flow.html` | Sankey diagram | `spotify-tracks.csv` |
 | Resonance Timeline | `pages/resonance-timeline.html` | Line + area chart | `spotify-tracks.csv` + `global-crises.csv` |
 | Genre Forecast | `pages/genre-forecast.html` | Multi-line + forecast | `genre-trends.csv` |
-| Network Map | `pages/network-map.html` | Force-directed graph | `artist-connections.csv` |
+| Global Collabs | `pages/network-map.html` | 3D globe (globe.gl) | `artist-connections.csv` |
 
 All visualisation pages share the same shell: fixed nav, collapsible sidebar with filters, D3 chart area. They are completely independent — you can work on one without touching any other.
 
@@ -69,7 +69,7 @@ roots-of-rhythm/
 │   ├── cultural-flow.html        Sankey: genre flow between continents
 │   ├── resonance-timeline.html   Timeline: valence vs. world crises
 │   ├── genre-forecast.html       Line chart: genre trends + forecast 2030
-│   └── network-map.html          Force graph: artist collaborations
+│   └── network-map.html          Global Collabs: 3D globe of cross-region collaborations
 │
 ├── css/
 │   ├── variables.css             ← ALL design tokens (colours, fonts, spacing)
@@ -86,13 +86,16 @@ roots-of-rhythm/
 │       ├── cultural-flow.js      D3 Sankey logic
 │       ├── resonance-timeline.js D3 line/area logic
 │       ├── genre-forecast.js     D3 multi-line + forecast logic
-│       └── network-map.js        D3 force simulation logic
+│       └── network-map.js        Global Collabs globe (globe.gl) + region/country aggregation
 │
-├── data/                         CSV files — headers only until real data is added
+├── data/                         CSV/JSON data + build scripts
 │   ├── spotify-tracks.csv
 │   ├── genre-trends.csv
 │   ├── global-crises.csv
-│   └── artist-connections.csv
+│   ├── artist-connections.csv            Collaboration pairs (Global Collabs)
+│   ├── artist-connections-placeholder.csv  Dev fallback (real artists, synthetic pairs)
+│   ├── country-coords.json               ISO-2 → { name, lat, lon, region }
+│   └── build_connections_offline.py      Builds artist-connections.csv from the MB artist dump (no API)
 │
 └── assets/icons/                 Reserved for SVG icons
 ```
@@ -196,12 +199,26 @@ Then open `http://localhost:3000`.
 - **Forecast method:** Ordinary least-squares regression on historical scores. Confidence band = ±1.5× RMSE. This is intentionally simple for MVP — replace with a better model when real data is available
 - **Interaction:** Click a legend item to toggle a genre line on/off
 
-### Network Map (`pages/network-map.html`)
+### Global Collabs (`pages/network-map.html`)
 
-- **Chart:** D3 force-directed graph with pan/zoom
-- **What it shows:** Artist collaboration network — node size = popularity, colour = region, edge weight = collaboration count
+- **Chart:** 3D globe (globe.gl / Three.js) of cross-region artist collaborations
+- **What it shows:** Each arc links two regions (or two countries); arc thickness = total collaborations crossing between them. A travelling pulse along each arc conveys flow without breaking the line.
 - **JS file:** `js/pages/network-map.js`
-- **Interaction:** Drag individual nodes, scroll to zoom, region filter removes nodes + their connected edges
+- **Aggregation (avoids the hairball):** a *Detail level* toggle switches between **Region** — a handful of fat continent-to-continent arcs, the readable default — and **Country**, one arc per country↔country route. Arc thickness scales (sqrt) with the route's total collaborations, relative to the busiest visible route.
+- **Interaction:** drag to rotate (slow auto-rotate, pauses on hover); click an arc to pin it (stops rotation, dims the rest) and open a drill-down listing the underlying artist pairs; click a pair for a single-collaboration card (from → to, count, first year). Sidebar filters: region (colour-coded, doubling as the legend), decade range, "Europe ↔ World only", and a minimum-collaborations threshold that rescales to the active detail level.
+
+#### Data & methodology — `artist-connections.csv`
+
+Collaboration pairs are derived from MusicBrainz and built **offline** (no rate-limited API) by `data/build_connections_offline.py`:
+
+1. **Source.** Phase-1 track data (`raw-tracks.json` — one record per recording with its *full* multi-artist credit list) is joined against a local **MusicBrainz artist JSON dump** (`artist.tar.xz` from the MB json-dumps), whose records carry each artist's `country` (ISO-2) directly. This replaces ~20k slow per-artist API calls with a single local pass.
+2. **Collaborations only.** Tracks with fewer than two credited artists are dropped — they aren't collaborations. For each multi-artist track, every unordered artist pair is emitted and aggregated: `collaboration_count` = number of shared tracks, `year` = earliest.
+3. **Region resolution.** Each artist's ISO-2 country is mapped to a region via `country-coords.json`. **Pairs where either artist's country has no mapped region are dropped** (they can't be placed on the globe). About 83% of artists resolve to a country in the dump; the rest have no country set in MusicBrainz.
+4. **Region taxonomy.** The Americas are split into **North America** (US, Canada) and **Latin America** (Mexico + Central America + Caribbean + South America), matching the Cultural Flow and Sankey pages.
+
+A small `artist-connections-placeholder.csv` (real artists, synthetic pairs) is the development fallback; a "placeholder data" badge shows whenever it's in use because the real CSV is empty.
+
+> Design rationale for choosing a 3D globe (and the alternatives weighed) lives in `DEVNOTES.md`.
 
 ---
 
@@ -233,7 +250,9 @@ crisis_id, crisis_name, crisis_type, severity, regions_affected, start_year, end
 ```
 artist_id, artist_name, country, region, collaborator_id, collaborator_name, collab_country, collab_region, collaboration_count, year
 ```
-`region` must be one of: `Europe`, `Americas`, `Africa`, `Asia`, `Oceania`
+`region` must be one of: `Europe`, `North America`, `Latin America`, `Africa`, `Asia`, `Oceania`
+
+> The Global Collabs page builds this file via `data/build_connections_offline.py` (see that page's *Data & methodology* above).
 
 ### Step 2 — update each page JS file
 

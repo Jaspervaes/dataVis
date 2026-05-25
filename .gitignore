@@ -12,3 +12,8 @@ data/genre-forecast.csv
 
 # Reference materials (kept locally, not part of code)
 *.pdf
+
+# MusicBrainz data dumps (multi-GB; used by data/build_connections_offline.py)
+data/artist/
+*.tar.xz
+*.tar.bz2
