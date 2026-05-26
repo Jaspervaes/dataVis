@@ -1,0 +1,139 @@
+/**
+ * resonance-timeline-insights.css
+ * ─────────────────────────────────────────────────────────────
+ * Story cards parked below the Resonance Timeline year-detail box.
+ * Self-contained — loaded only when the matching JS module is included.
+ * See: js/pages/resonance-timeline-insights.js
+ * ─────────────────────────────────────────────────────────────
+ */
+
+.story-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-6);
+}
+
+@media (max-width: 880px) {
+  .story-cards { grid-template-columns: 1fr; }
+}
+
+.story-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: 20px 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--card-accent, var(--acid));
+  border-radius: 0;
+  transition: border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+.story-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.story-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.story-card-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.story-card-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.story-card-tag[data-tone="up"]   { color: #82d4be; }
+.story-card-tag[data-tone="down"] { color: #e5321c; }
+.story-card-tag[data-tone="flat"] { color: var(--text-muted); }
+
+.story-card-hero {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.story-card-value {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.story-card-unit {
+  font-family: var(--font-body);
+  font-size: var(--size-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.story-card-tagline {
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
+  color: var(--text-primary);
+  line-height: var(--leading-snug);
+  margin: 0;
+}
+
+.story-card-tagline strong {
+  color: var(--card-accent, var(--text-primary));
+  font-weight: var(--weight-medium);
+}
+
+.story-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--border);
+}
+
+.story-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--chip-color, var(--text-muted));
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.story-chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--chip-color, currentColor);
+  flex-shrink: 0;
+}
