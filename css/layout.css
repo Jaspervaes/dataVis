@@ -398,6 +398,73 @@
   position: relative;
 }
 
+/* Zoom-mode toggle (magnifier-lens activation) */
+.zoom-toggle {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-4);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 5px 10px 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+/* Sample badge stacks below the zoom toggle when both visible. */
+.zoom-toggle ~ .viz-sample-badge {
+  top: calc(var(--sp-3) + 32px);
+}
+
+.zoom-toggle:hover {
+  color: var(--acid);
+  border-color: var(--acid-border);
+}
+
+.zoom-toggle.is-active {
+  color: var(--bg-base);
+  background: var(--acid);
+  border-color: var(--acid);
+}
+
+.zoom-toggle svg { display: block; }
+
+.zoom-toggle-label { line-height: 1; }
+
+/* Magnifier lens (Resonance Timeline) — SVG visuals only */
+.lens .lens-bg {
+  fill: var(--bg-surface);
+  opacity: 0.96;
+}
+
+.lens .lens-axis-mask {
+  fill: var(--bg-surface);
+}
+
+.lens .lens-border {
+  fill: none;
+  stroke: var(--acid);
+  stroke-width: 1.5;
+}
+
+.lens .lens-axis text {
+  color: var(--text-secondary);
+}
+
+.lens .lens-axis .lens-tick-year text {
+  color: var(--text-primary);
+}
+
 /* Sample data badge — DM Mono, sharp */
 .viz-sample-badge {
   position: absolute;

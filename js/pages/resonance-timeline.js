@@ -84,8 +84,16 @@ let rawCrises = null;
 let usingRealCrises  = false;
 let usingRealValence = false;
 let usingRegionData  = false; // true when merged + artist-country join succeeded
-let pinnedYear      = null;   // null = no insight box; otherwise the focused year
+// null = no insight box. Otherwise one of:
+//   { type: 'year',    year }
+//   { type: 'quarter', year, quarter }   (1..4)
+let pinnedPeriod    = null;
 let regionFeature   = null;   // which audio feature drives the regional column
+let zoomMode        = false;  // magnifier-lens toggle
+// Last cursor X (in chart-inner coords) while the mouse is over the chart.
+// Survives render() so the lens can re-appear at the same spot after a
+// click-pin triggers a full chart rebuild. Cleared on mouseleave.
+let lastMouseChartX = null;
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -108,7 +116,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (region) artistToRegion.set(row.artist_name, region);
     }
     rawMergedTracks = merged
-      .map(t => ({ ...t, region: artistToRegion.get(t.principal_artist_name) || null }))
+      .map(t => {
+        const region = artistToRegion.get(t.principal_artist_name) || null;
+        // Derive quarter from album_release_date when present. Tracks
+        // missing a usable date keep quarter=null and are skipped from
+        // the quarterly aggregation (but still feed the yearly path).
+        let quarter = null;
+        const dateStr = t.album_release_date;
+        if (dateStr && typeof dateStr === 'string' && dateStr.length >= 7) {
+          const month = +dateStr.slice(5, 7);
+          if (Number.isFinite(month) && month >= 1 && month <= 12) {
+            quarter = Math.ceil(month / 3);
+          }
+        }
+        return { ...t, region, quarter };
+      })
       .filter(t => t.region && t.year != null && Number.isFinite(+t.year));
     if (rawMergedTracks.length) {
       usingRegionData  = true;
@@ -135,19 +157,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     rawCrises = mockGlobalCrises();
   }
 
+  initZoomToggle();
   render();
 
   window.addEventListener('filters:changed', render);
   window.addEventListener('resize', render);
 });
 
+// ── Zoom-mode toggle button ─────────────────────────────────
+function initZoomToggle() {
+  const btn = document.getElementById('zoom-toggle');
+  if (!btn) return;
+
+  // Quarterly data is only available on the merged + artist-country path.
+  // Disable (hide) the toggle when we don't have it so users aren't offered
+  // a magnifier that would render an empty lens.
+  if (!usingRegionData) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  btn.addEventListener('click', () => {
+    zoomMode = !zoomMode;
+    btn.setAttribute('aria-pressed', String(zoomMode));
+    btn.classList.toggle('is-active', zoomMode);
+    render();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && zoomMode) {
+      zoomMode = false;
+      btn.setAttribute('aria-pressed', 'false');
+      btn.classList.remove('is-active');
+      render();
+    }
+  });
+}
+
 // ── Data preparation ─────────────────────────────────────────
+// Quarter is encoded as a fractional year for plotting: 2001 Q3 → 2001.5
+// (Q1 → 0.0, Q2 → 0.25, Q3 → 0.5, Q4 → 0.75). Keeps the X axis a single
+// numeric scale shared between yearly and quarterly views.
+function quarterToFracYear(year, quarter) {
+  return year + (quarter - 1) / 4;
+}
+
+// Map a pinnedPeriod to the X-axis coordinate where its marker should sit.
+// Year pin → integer year. Quarter pin → quarter midpoint (year + (q-1)/4 + 1/8).
+function periodToFracYear(period) {
+  if (!period) return null;
+  if (period.type === 'year') return period.year;
+  if (period.type === 'quarter') return period.year + (period.quarter - 1) / 4 + 1 / 8;
+  return null;
+}
+
 function prepareData(filters) {
   const [start, end] = filters.decadeRange;
   const activeFeatures = filters.audioFeatures
     .filter(f => Object.keys(FEATURE_COLORS).includes(f));
 
   const seriesByFeature = {};
+  const quarterlyByFeature = {};
 
   // Pre-filter merged tracks once per render (shared across all features).
   let mergedScope = null;
@@ -199,6 +269,35 @@ function prepareData(filters) {
       const win = raw.slice(Math.max(0, i - 1), i + 2);
       return { year: d.year, value: d3.mean(win, w => w.value) };
     });
+
+    // Quarterly aggregation — only available on the region (merged) path,
+    // and only for tracks with a parseable album_release_date.
+    if (usingRegionData) {
+      const byQuarter = d3.rollup(
+        mergedScope.filter(d => d.quarter != null && Number.isFinite(+d[feature])),
+        v => ({
+          value: d3.mean(v, d => {
+            const val = +d[feature];
+            return feature === 'tempo' ? val / TEMPO_NORM : val;
+          }),
+          count: v.length,
+        }),
+        d => `${+d.year}-${d.quarter}`
+      );
+      const rawQ = Array.from(byQuarter, ([key, agg]) => {
+        const [y, q] = key.split('-').map(Number);
+        return { year: y, quarter: q, frac: quarterToFracYear(y, q), value: agg.value, count: agg.count };
+      })
+      .filter(d => d.count >= 4) // suppress quarters with too-thin samples
+      .sort((a, b) => a.frac - b.frac);
+
+      // Rolling 3-quarter smoother — matches the visual cadence of the
+      // 3-year smoother on the yearly series.
+      quarterlyByFeature[feature] = rawQ.map((d, i) => {
+        const win = rawQ.slice(Math.max(0, i - 1), i + 2);
+        return { year: d.year, quarter: d.quarter, frac: d.frac, value: d3.mean(win, w => w.value) };
+      });
+    }
   }
 
   const crises = rawCrises.filter(c => {
@@ -209,19 +308,20 @@ function prepareData(filters) {
     return filters.regions.some(r => crisisRegions.includes(r.toLowerCase()));
   });
 
-  return { seriesByFeature, crises };
+  return { seriesByFeature, quarterlyByFeature, crises };
 }
 
 
 // ── Render ────────────────────────────────────────────────────
 function render() {
   const filters   = getFilters();
-  const { seriesByFeature, crises } = prepareData(filters);
+  const { seriesByFeature, quarterlyByFeature, crises } = prepareData(filters);
   const container = document.getElementById('viz-container');
   if (!container) return;
   container.innerHTML = '';
 
   const featureEntries = Object.entries(seriesByFeature);
+  const quarterlyEntries = Object.entries(quarterlyByFeature);
   const allPoints = featureEntries.flatMap(([, s]) => s);
 
   if (allPoints.length < 2) {
@@ -392,32 +492,243 @@ function render() {
       .attr('stroke-width', 1.5);
   });
 
-  // Pinned-year vertical marker (separate from the hover focus line)
-  if (pinnedYear != null && pinnedYear >= filterStart && pinnedYear <= filterEnd) {
+  // Pinned-period vertical marker (separate from the hover focus line).
+  // For quarter pins, we drop the marker at the quarter's mid-point so it
+  // sits visually inside that quarter on the outer (yearly) scale.
+  const pinnedFrac = periodToFracYear(pinnedPeriod);
+  if (pinnedFrac != null && pinnedFrac >= filterStart && pinnedFrac <= filterEnd) {
     g.append('line')
       .attr('class', 'pinned-line')
-      .attr('x1', xScale(pinnedYear)).attr('x2', xScale(pinnedYear))
+      .attr('x1', xScale(pinnedFrac)).attr('x2', xScale(pinnedFrac))
       .attr('y1', 0).attr('y2', innerH)
       .attr('stroke', 'var(--acid)')
       .attr('stroke-width', 1.5)
       .attr('opacity', 0.8);
   }
 
+  // ── Magnifier-lens group (built once per render, shown only in zoomMode) ──
+  // Dimensions: a fixed pixel width capped at 45% of chart width so it never
+  // dominates. Inside the lens, a 5-year window is stretched to fill the
+  // lens width — i.e. true zoom, not just finer data at the same scale.
+  // The lens box extends ~22px below the chart bottom so its own year labels
+  // sit inside the lens (and visually replace the outer X-axis labels under
+  // the lens), preventing the two axes from colliding.
+  const LENS_YEAR_SPAN = 5;
+  const LENS_W = Math.min(360, Math.max(240, innerW * 0.45));
+  const LENS_AXIS_H = 22;
+  const LENS_TOTAL_H = innerH + LENS_AXIS_H;
+  const lensClipId = `lens-clip-${Math.random().toString(36).slice(2, 8)}`;
+
+  defs.append('clipPath')
+    .attr('id', lensClipId)
+    .append('rect')
+    .attr('class', 'lens-clip-rect')
+    .attr('width', LENS_W)
+    .attr('height', innerH);
+
+  const lensG = g.append('g')
+    .attr('class', 'lens')
+    .style('display', 'none')
+    .style('pointer-events', 'none');
+
+  // Lens background tint + content (clipped) + axis (in bottom band) + border.
+  lensG.append('rect')
+    .attr('class', 'lens-bg')
+    .attr('width', LENS_W)
+    .attr('height', LENS_TOTAL_H);
+  // Mask the outer X-axis labels that sit directly under the lens so they
+  // don't bleed through. Same bg, drawn over the axis band.
+  lensG.append('rect')
+    .attr('class', 'lens-axis-mask')
+    .attr('y', innerH)
+    .attr('width', LENS_W)
+    .attr('height', LENS_AXIS_H);
+  const lensContentG = lensG.append('g')
+    .attr('class', 'lens-content')
+    .attr('clip-path', `url(#${lensClipId})`);
+  const lensAxisG = lensG.append('g')
+    .attr('class', 'lens-axis')
+    .attr('transform', `translate(0,${innerH})`);
+  lensG.append('rect')
+    .attr('class', 'lens-border')
+    .attr('width', LENS_W)
+    .attr('height', LENS_TOTAL_H);
+
+  // Pre-build line/area generators for the lens (use innerXScale set per frame).
+  const innerXScale = d3.scaleLinear().range([0, LENS_W]);
+  const lensLineGen = d3.line()
+    .x(d => innerXScale(d.frac))
+    .y(d => yScale(d.value))
+    .curve(d3.curveCatmullRom.alpha(0.5));
+  const lensAreaGen = d3.area()
+    .x(d => innerXScale(d.frac))
+    .y0(innerH)
+    .y1(d => yScale(d.value))
+    .curve(d3.curveCatmullRom.alpha(0.5));
+
+  // Renders lens contents centered on a cursor X coordinate.
+  function renderLens(cursorX) {
+    // Center the lens on the cursor along X, clamped so it stays inside the chart.
+    const lensX = Math.max(0, Math.min(innerW - LENS_W, cursorX - LENS_W / 2));
+    lensG.attr('transform', `translate(${lensX},0)`);
+
+    // Year window covered by the lens, mapped from cursor X (not lens X) so
+    // the centre of magnification follows the mouse precisely when not clamped.
+    const cursorYear = xScale.invert(cursorX);
+    let yStart = cursorYear - LENS_YEAR_SPAN / 2;
+    let yEnd   = cursorYear + LENS_YEAR_SPAN / 2;
+    // Clamp window to the filter range so we don't display empty space.
+    if (yStart < filterStart) { yEnd += (filterStart - yStart); yStart = filterStart; }
+    if (yEnd   > filterEnd)   { yStart -= (yEnd - filterEnd);   yEnd   = filterEnd;   }
+    innerXScale.domain([yStart, yEnd]);
+
+    // Clear previous lens-content paths and redraw quarterly series in window.
+    lensContentG.selectAll('*').remove();
+
+    quarterlyEntries.forEach(([feature, qseries]) => {
+      // Include a small padding on each side so the curve enters/exits cleanly.
+      const inWindow = qseries.filter(p => p.frac >= yStart - 0.25 && p.frac <= yEnd + 0.25);
+      if (inWindow.length < 2) return;
+      lensContentG.append('path')
+        .attr('class', 'lens-area')
+        .attr('fill', `url(#gradient-${feature})`)
+        .attr('opacity', 0.7)
+        .attr('d', lensAreaGen(inWindow));
+      lensContentG.append('path')
+        .attr('class', 'lens-line')
+        .attr('fill', 'none')
+        .attr('stroke', FEATURE_COLORS[feature])
+        .attr('stroke-width', 2.25)
+        .attr('d', lensLineGen(inWindow));
+    });
+
+    // Year labels at each Q1 inside the lens' bottom band. Q2/Q3/Q4 get
+    // small unlabelled ticks so the user still sees the quarter cadence.
+    const yearTickData = [];
+    const quarterTickData = [];
+    for (let y = Math.ceil(yStart - 1); y <= Math.floor(yEnd) + 1; y++) {
+      for (let q = 1; q <= 4; q++) {
+        const frac = y + (q - 1) / 4;
+        if (frac < yStart || frac > yEnd) continue;
+        if (q === 1) yearTickData.push({ year: y, frac });
+        else quarterTickData.push({ year: y, quarter: q, frac });
+      }
+    }
+
+    const yticks = lensAxisG.selectAll('g.lens-tick-year').data(yearTickData, d => d.year);
+    yticks.exit().remove();
+    const ytickEnter = yticks.enter().append('g').attr('class', 'lens-tick-year');
+    ytickEnter.append('line').attr('y1', 0).attr('y2', 5)
+      .attr('stroke', 'currentColor').attr('stroke-width', 1.25).attr('opacity', 0.7);
+    ytickEnter.append('text').attr('y', 16).attr('text-anchor', 'middle')
+      .attr('font-size', 10).attr('font-family', FONT_STACK)
+      .attr('font-weight', 500).attr('fill', 'currentColor');
+    const allYTicks = ytickEnter.merge(yticks);
+    allYTicks.attr('transform', d => `translate(${innerXScale(d.frac)},0)`);
+    allYTicks.select('text').text(d => `${d.year}`);
+
+    const qticks = lensAxisG.selectAll('g.lens-tick-q')
+      .data(quarterTickData, d => `${d.year}-${d.quarter}`);
+    qticks.exit().remove();
+    const qtickEnter = qticks.enter().append('g').attr('class', 'lens-tick-q');
+    qtickEnter.append('line').attr('y1', 0).attr('y2', 3)
+      .attr('stroke', 'currentColor').attr('stroke-width', 1).attr('opacity', 0.35);
+    qtickEnter.merge(qticks)
+      .attr('transform', d => `translate(${innerXScale(d.frac)},0)`);
+
+    return { lensX, yStart, yEnd };
+  }
+
+  // Compute the quarter under a cursor X (assumes cursorX is in chart-inner coords).
+  function quarterUnderCursor(cursorX, lensState) {
+    const { lensX, yStart, yEnd } = lensState;
+    const xInLens = cursorX - lensX;
+    const xClamped = Math.max(0, Math.min(LENS_W, xInLens));
+    const frac = yStart + (xClamped / LENS_W) * (yEnd - yStart);
+    const year = Math.floor(frac);
+    const q = Math.min(4, Math.max(1, Math.floor((frac - year) * 4) + 1));
+    return { year, quarter: q };
+  }
+
+  // Track the most recent lens state so click can use it (no re-render needed).
+  let lensState = null;
+
+  // Re-show the lens at the persisted cursor position when re-rendering
+  // mid-interaction (e.g. just clicked to pin a quarter, chart rebuilt).
+  // Without this the lens disappears after a click and the user thinks
+  // nothing happened.
+  if (zoomMode && lastMouseChartX != null
+      && lastMouseChartX >= 0 && lastMouseChartX <= innerW) {
+    lensState = renderLens(lastMouseChartX);
+    lensG.style('display', null);
+  }
+
   g.append('rect')
+    .attr('class', 'chart-overlay')
     .attr('width',  innerW)
     .attr('height', innerH)
     .attr('fill',   'transparent')
-    .style('cursor', 'pointer')
-    .on('mouseenter', () => focusG.style('display', null))
-    .on('mouseleave', () => { focusG.style('display', 'none'); tooltip.hide(); })
+    .style('cursor', zoomMode ? 'zoom-in' : 'pointer')
+    .on('mouseenter', () => {
+      if (zoomMode) {
+        lensG.style('display', null);
+      } else {
+        focusG.style('display', null);
+      }
+    })
+    .on('mouseleave', () => {
+      lensG.style('display', 'none');
+      focusG.style('display', 'none');
+      tooltip.hide();
+      lastMouseChartX = null;
+    })
     .on('click', function(event) {
-      const [mx] = d3.pointer(event);
-      const yr = Math.round(xScale.invert(mx));
-      pinnedYear = (pinnedYear === yr) ? null : yr;
-      render();
+      try {
+        const [mx] = d3.pointer(event);
+        lastMouseChartX = mx;
+        if (zoomMode) {
+          // Click inside the lens pins a quarter; toggle off if it's already pinned.
+          const state = lensState || renderLens(mx);
+          const { year: yr, quarter: q } = quarterUnderCursor(mx, state);
+          const same = pinnedPeriod && pinnedPeriod.type === 'quarter'
+            && pinnedPeriod.year === yr && pinnedPeriod.quarter === q;
+          pinnedPeriod = same ? null : { type: 'quarter', year: yr, quarter: q };
+          render();
+          return;
+        }
+        const yr = Math.round(xScale.invert(mx));
+        const same = pinnedPeriod && pinnedPeriod.type === 'year' && pinnedPeriod.year === yr;
+        pinnedPeriod = same ? null : { type: 'year', year: yr };
+        render();
+      } catch (err) {
+        console.error('Resonance timeline click handler failed:', err);
+      }
     })
     .on('mousemove', function(event) {
       const [mx] = d3.pointer(event);
+      lastMouseChartX = mx;
+
+      if (zoomMode) {
+        lensState = renderLens(mx);
+        // Show a quarter-level tooltip pegged to the cursor.
+        const { year: yr, quarter: q } = quarterUnderCursor(mx, lensState);
+        const featureRows = quarterlyEntries.map(([feature, qseries]) => {
+          const pt = qseries.find(p => p.year === yr && p.quarter === q);
+          const raw = pt ? pt.value : null;
+          const display = raw != null
+            ? (feature === 'tempo' ? `${(raw * TEMPO_NORM).toFixed(0)} BPM` : `${(raw * 100).toFixed(1)}%`)
+            : '—';
+          return { label: FEATURE_LABELS[feature], value: display, color: FEATURE_COLORS[feature] };
+        });
+        const activeCrises = crises.filter(c => yr >= +c.start_year && yr <= +c.end_year);
+        tooltip.show(event, tooltipHtml(`${yr} Q${q}`, [
+          ...featureRows,
+          ...activeCrises.map(c => ({ label: CRISIS_LABELS[c.crisis_type] || 'Crisis', value: c.crisis_name, color: CRISIS_COLORS[c.crisis_type] })),
+        ]));
+        tooltip.move(event);
+        return;
+      }
+
       const year = xScale.invert(mx);
       const ref  = seriesByFeature[primaryFeature];
       const idx  = bisect(ref, year);
@@ -488,17 +799,17 @@ function render() {
   });
 
   updateInsightCards(series, primaryFeature, crises);
-  updateInsightBox(seriesByFeature, crises, filters, primaryFeature);
+  updateInsightBox(seriesByFeature, quarterlyByFeature, crises, filters, primaryFeature);
   updateBadge();
 }
 
 // ── Insight box (year-detail panel) ───────────────────────────
-function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
+function updateInsightBox(seriesByFeature, quarterlyByFeature, crises, filters, primaryFeature) {
   const box = document.getElementById('insight-box');
   if (!box) return;
 
   // ── Empty state ───────────────────────────────────────────
-  if (pinnedYear == null) {
+  if (pinnedPeriod == null) {
     box.classList.add('is-empty');
     box.innerHTML = `
       <div class="insight-box-cta">
@@ -509,6 +820,11 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
       </div>`;
     return;
   }
+
+  const isQuarterPin = pinnedPeriod.type === 'quarter';
+  const year   = pinnedPeriod.year;
+  const quarter = isQuarterPin ? pinnedPeriod.quarter : null;
+  const periodLabel = isQuarterPin ? `${year} Q${quarter}` : `${year}`;
 
   // ── Populated state: rebuild skeleton if needed, then render ──
   box.classList.remove('is-empty');
@@ -541,32 +857,60 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
   const regionBarsEl  = document.getElementById('insight-region-bars');
   const regionFootEl  = document.getElementById('insight-region-foot');
 
-  const year = pinnedYear;
-  titleEl.textContent = year;
+  titleEl.textContent = periodLabel;
 
   // ── Crisis-delta column ───────────────────────────────────
-  // Default baseline: 3 years immediately preceding the selected year.
+  // Default baseline: the 3 periods immediately preceding the pinned one.
   // If the year sits inside one or more active crises, pivot the baseline
   // to the 3 years before the *crisis* began — so the comparison answers
   // "how did music change because of this event?" rather than a rolling
-  // year-over-year drift. Highest-priority crisis wins when several overlap.
+  // drift. Highest-priority crisis wins when several overlap.
+  // Quarter pins always use the prior-3-quarter baseline (no crisis pivot)
+  // because crisis dates are year-precision.
   const overlappingCrises = crises.filter(c => year >= +c.start_year && year <= +c.end_year);
-  const headlineCrisis = overlappingCrises.length
+  const headlineCrisis = (!isQuarterPin && overlappingCrises.length)
     ? [...overlappingCrises].sort(
         (a, b) => (CRISIS_PRIORITY[b.crisis_type] || 0) - (CRISIS_PRIORITY[a.crisis_type] || 0)
       )[0]
     : null;
-  const baselineAnchor = headlineCrisis ? +headlineCrisis.start_year : year;
-  const baselineYears = [baselineAnchor - 3, baselineAnchor - 2, baselineAnchor - 1];
-  deltaSubEl.textContent = headlineCrisis
-    ? `VS. PRE-CRISIS (${baselineAnchor - 3}–${baselineAnchor - 1})`
-    : `VS. ${year - 3}–${year - 1} BASELINE`;
+
+  // For quarter pins, baseline is the 3 prior quarters (as {year, quarter} pairs).
+  // For year pins, baseline is the 3 prior years (anchored on crisis start if applicable).
+  let baselineLabel;
+  let priorQuarters = null;        // populated for quarter pins
+  let baselineYears = null;        // populated for year pins
+  if (isQuarterPin) {
+    priorQuarters = [3, 2, 1].map(off => {
+      let y = year, q = quarter - off;
+      while (q < 1) { q += 4; y -= 1; }
+      return { year: y, quarter: q };
+    });
+    const first = priorQuarters[0], last = priorQuarters[2];
+    baselineLabel = `VS. ${first.year} Q${first.quarter}–${last.year} Q${last.quarter}`;
+  } else {
+    const baselineAnchor = headlineCrisis ? +headlineCrisis.start_year : year;
+    baselineYears = [baselineAnchor - 3, baselineAnchor - 2, baselineAnchor - 1];
+    baselineLabel = headlineCrisis
+      ? `VS. PRE-CRISIS (${baselineAnchor - 3}–${baselineAnchor - 1})`
+      : `VS. ${year - 3}–${year - 1} BASELINE`;
+  }
+  deltaSubEl.textContent = baselineLabel;
 
   const featureEntries = Object.entries(seriesByFeature);
   const rowsHtml = featureEntries.map(([feature, fseries]) => {
-    const pt = fseries.find(p => p.year === year);
-    const baselinePts = fseries.filter(p => baselineYears.includes(p.year));
-    const baseline = baselinePts.length ? d3.mean(baselinePts, p => p.value) : null;
+    let pt, baseline;
+    if (isQuarterPin) {
+      const qseries = quarterlyByFeature[feature] || [];
+      pt = qseries.find(p => p.year === year && p.quarter === quarter);
+      const baselinePts = qseries.filter(p =>
+        priorQuarters.some(b => b.year === p.year && b.quarter === p.quarter)
+      );
+      baseline = baselinePts.length ? d3.mean(baselinePts, p => p.value) : null;
+    } else {
+      pt = fseries.find(p => p.year === year);
+      const baselinePts = fseries.filter(p => baselineYears.includes(p.year));
+      baseline = baselinePts.length ? d3.mean(baselinePts, p => p.value) : null;
+    }
     const isTempo = feature === 'tempo';
 
     const valueText = pt
@@ -601,7 +945,7 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
           <span class="insight-crisis-dot" style="background:${CRISIS_COLORS[c.crisis_type]}"></span>
           ${c.crisis_name}
         </span>`).join('')
-    : '<span class="insight-empty">No crises active in this year.</span>';
+    : `<span class="insight-empty">No crises active in this ${isQuarterPin ? 'quarter' : 'year'}.</span>`;
 
   // ── Regional split column ─────────────────────────────────
   if (!usingRegionData) {
@@ -680,7 +1024,11 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
   // label for so it doesn't render as a ghost row.
   const regionsSelected = filters.regions.filter(r => REGION_LABELS[r]);
   const regionStats = regionsSelected.map(region => {
-    const tracks = rawMergedTracks.filter(t => t.region === region && +t.year === year);
+    const tracks = rawMergedTracks.filter(t => {
+      if (t.region !== region || +t.year !== year) return false;
+      if (isQuarterPin && t.quarter !== quarter) return false;
+      return true;
+    });
     const valid  = tracks.filter(t => Number.isFinite(+t[featureForRegion]));
     if (!valid.length) return { region, value: null, count: 0 };
     const mean = d3.mean(valid, t => {
@@ -693,7 +1041,7 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
   // All selected regions are absent → keep box visible but no footer.
   const anyData = regionStats.some(s => s.value != null);
   if (!anyData) {
-    regionBarsEl.innerHTML = `<p class="insight-empty">No tracks for ${year} in the selected regions.</p>`;
+    regionBarsEl.innerHTML = `<p class="insight-empty">No tracks for ${periodLabel} in the selected regions.</p>`;
     regionFootEl.innerHTML = '';
     return;
   }
@@ -722,7 +1070,7 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
           <span class="insight-bar-value">${valTxt}</span>
         </div>`;
     }).join('');
-    regionFootEl.innerHTML = `<span class="insight-empty">No European tracks for ${year} — showing absolute values.</span>`;
+    regionFootEl.innerHTML = `<span class="insight-empty">No European tracks for ${periodLabel} — showing absolute values.</span>`;
     return;
   }
 
@@ -737,7 +1085,7 @@ function updateInsightBox(seriesByFeature, crises, filters, primaryFeature) {
   const otherRowsHtml = others.map(s => {
     if (s.value == null) {
       return `
-        <div class="insight-bar-row is-empty" title="No tracks attributed to this region for ${year}">
+        <div class="insight-bar-row is-empty" title="No tracks attributed to this region for ${periodLabel}">
           <span class="insight-bar-label">${REGION_LABELS[s.region]}</span>
           <span class="insight-row-delta flat"><span class="insight-na-tag">no data</span></span>
         </div>`;
