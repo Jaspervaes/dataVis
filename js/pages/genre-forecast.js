@@ -42,7 +42,6 @@ let crises         = null;   // [{name, type, severity, start, end}]
 let euWindow       = '';
 let hiddenGenres   = new Set();
 let usingRealData  = false;
-let showHistory    = false;  // lifecycle map: default to clean "now → 2030" view
 
 const REGION_ORDER = ['US', 'LatAm', 'Asia', 'Africa/ME'];
 const CRISIS_COLORS = {
@@ -120,14 +119,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('filters:changed', render);
   window.addEventListener('resize', render);
 
-  // History toggle for the lifecycle map
-  const historyBtn = document.getElementById('toggle-history');
-  if (historyBtn) {
-    historyBtn.addEventListener('click', () => {
-      showHistory = !showHistory;
-      historyBtn.classList.toggle('active', showHistory);
-      historyBtn.lastChild.nodeValue = showHistory ? 'HIDE HISTORY' : 'SHOW HISTORY';
-      render();
+  // Left-panel view switch: Lifecycle Map (default) ⇄ Global Forecast.
+  // The hidden panel measures 0px wide, so re-render after each switch to let
+  // the now-visible chart pick up its real column width.
+  const viewSwitch = document.querySelector('.view-switch');
+  if (viewSwitch) {
+    const TITLES = { lifecycle: 'Genre Lifecycle Map', forecast: 'Global Genre Share' };
+    const titleEl = document.getElementById('left-title');
+    viewSwitch.querySelectorAll('.view-switch-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const view = btn.dataset.view;
+        viewSwitch.querySelectorAll('.view-switch-btn').forEach(b => {
+          const on = b === btn;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('.view-panel').forEach(p => {
+          p.hidden = p.dataset.view !== view;
+        });
+        if (titleEl && TITLES[view]) titleEl.textContent = TITLES[view];
+        render();
+      });
     });
   }
 });
@@ -741,6 +753,12 @@ function computeShortTermForecast(genre, horizonMonths = 6) {
     correlation: bestCorr,
     actualSeries: euFit.recent,
     projection,
+    // Slopes (pp/year) — exposed so the Lifecycle Map's momentum axis stays
+    // coherent with this chart. `euSlope` is the established last-6-month
+    // trend (the dot); `predictedSlope` is the blended trend the dashed
+    // projection draws (the arrow).
+    euSlope:        euFit.slope,
+    predictedSlope: blendedSlope,
   };
 }
 
@@ -879,17 +897,12 @@ function renderLifecycleQuadrant(visibleGenres) {
     return d3.sum(window, d => (d.year - xBar) * (d.share - yBar)) / sxx;
   };
 
-  const shareAt = (history, targetYear) => {
-    const matches = history.filter(d => d.year <= targetYear);
-    if (!matches.length) return null;
-    return matches[matches.length - 1].share;
-  };
-
-  // EU short-term slope in pp/year (from EU monthly chart data)
-  const euShortSlope = (genre) => {
+  // EU chart slope (pp/year) over the most recent `months` of monthly data
+  const euSlopeWindow = (genre, months) => {
     const eu = regionalMonthly?.get('EU')?.get(genre);
-    if (!eu || eu.length < 4) return null;
-    const recent = eu.slice(-6);
+    if (!eu || eu.length < 3) return null;
+    const recent = eu.slice(-months);
+    if (recent.length < 3) return null;
     const xBar = d3.mean(recent, d => d.decYear);
     const yBar = d3.mean(recent, d => d.share);
     const sxx  = d3.sum(recent, d => (d.decYear - xBar) ** 2);
@@ -909,43 +922,46 @@ function renderLifecycleQuadrant(visibleGenres) {
     return best;
   };
 
+  // Y axis is expressed as a 6-month pp change (same units as the hitlist).
+  // No clamp — the axis auto-scales below to fit the real values, so the arrow
+  // tip always lands on the exact PP the hitlist prints (even big movers).
+
   const trajectories = visibleGenres.map(genre => {
     const series = globalSeries.get(genre);
     if (!series || series.history.length < 10) return null;
 
     const history = series.history;
     const lastPt  = history[history.length - 1];
+    const corr    = strongestCorr(genre);
 
-    const longSlope15 = slopeAt(history, 2015);
-    const longSlope20 = slopeAt(history, 2020);
-    const longSlopeNow = slopeAt(history, lastPt.year);
+    // ── X-axis = catalog share: today → global forecast ~5 years out ─────────
+    const currentShare = lastPt.share;
+    const fc      = computeEnsembleForecast(history);
+    const targetY = lastPt.year + 5;
+    const fcPt    = fc.find(f => f.year === targetY)
+                 || fc.find(f => f.year === 2030)
+                 || fc[fc.length - 1];
+    const forecastShare = fcPt ? fcPt.share : null;
 
-    // Combined momentum: blend long-term with short-term EU, weighted by |correlation|
-    const corr   = strongestCorr(genre);
-    const w      = Math.min(0.7, 0.3 + 0.5 * Math.abs(corr.r));
-    const shortS = euShortSlope(genre);
-    const shortClamped = shortS == null ? null : Math.max(-3, Math.min(3, shortS));
-    const combinedY = (longSlopeNow != null && shortClamped != null)
-      ? (1 - w) * longSlopeNow + w * shortClamped
-      : longSlopeNow;
+    // ── Y-axis = short-term EU trend, in the SAME 6-month pp the hitlist uses ──
+    // Dot   = EU last-6-month trend, expressed as a 6-month change (euSlope × ½).
+    // Arrow = the predicted change the hitlist prints (stf.change = the blended
+    // slope × ½). Plotting in pp/6-mo — not pp/yr — makes the arrow tip land
+    // exactly on the trend chart's "PP" value, so the two charts agree.
+    const HORIZON_YEARS = 0.5;                          // 6 months, matches the hitlist
+    const stf           = computeShortTermForecast(genre, 6);
+    const fallbackSlope = euSlopeWindow(genre, 6);
+    const baseSlope     = stf ? stf.euSlope
+                        : (fallbackSlope != null ? fallbackSlope : slopeAt(history, lastPt.year));
+    const currentTrend  = baseSlope != null ? baseSlope * HORIZON_YEARS : null;
+    const comingTrend   = stf ? stf.change : currentTrend;
 
-    // Forecast slope (2030 share - today share) / 5
-    const fc = computeEnsembleForecast(history);
-    const fc2030 = fc.find(f => f.year === 2030);
-    const forecastSlope = fc2030 ? (fc2030.share - lastPt.share) / (2030 - lastPt.year) : null;
+    if (currentShare == null || forecastShare == null || currentTrend == null) return null;
 
     const trail = [
-      shareAt(history, 2015) != null && longSlope15 != null
-        ? { tag: '2015', share: shareAt(history, 2015), slope: longSlope15, kind: 'past' } : null,
-      shareAt(history, 2020) != null && longSlope20 != null
-        ? { tag: '2020', share: shareAt(history, 2020), slope: longSlope20, kind: 'past' } : null,
-      combinedY != null
-        ? { tag: 'now', share: lastPt.share, slope: combinedY, kind: 'now' } : null,
-      fc2030 && forecastSlope != null
-        ? { tag: '2030', share: fc2030.share, slope: forecastSlope, kind: 'forecast' } : null,
-    ].filter(Boolean);
-
-    if (trail.length < 2) return null;
+      { tag: 'now', share: currentShare,  slope: currentTrend, kind: 'now' },
+      { tag: '5yr', share: forecastShare, slope: (comingTrend != null ? comingTrend : currentTrend), kind: 'forecast' },
+    ];
 
     return {
       genre,
@@ -961,9 +977,17 @@ function renderLifecycleQuadrant(visibleGenres) {
   }
 
   // ── Layout ────────────────────────────────────────────────────────────────
+  // Fill the flex-allocated container height (so this view and the Forecast
+  // view, which share the same fixed-height column, render at one size).
+  // Subtract the container's padding — with border-box, getBoundingClientRect
+  // reports the padded box, and drawing the SVG at that size pushes the bottom
+  // legend out of bounds.
   const rect    = container.getBoundingClientRect();
-  const width   = rect.width || 900;
-  const height  = 540;
+  const cs      = getComputedStyle(container);
+  const padX    = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY    = parseFloat(cs.paddingTop)  + parseFloat(cs.paddingBottom);
+  const width   = (rect.width  || 900) - padX;
+  const height  = Math.max((rect.height || 540) - padY, 460);
   const margin  = { top: 32, right: 36, bottom: 64, left: 64 };
   const iW = width - margin.left - margin.right;
   const iH = height - margin.top - margin.bottom;
@@ -1007,20 +1031,27 @@ function renderLifecycleQuadrant(visibleGenres) {
     .attr('fill', 'var(--bg-surface)')
     .attr('stroke', AXIS_COLOR).attr('stroke-width', 1.5);
 
-  // ── Quadrant labels — bold, centred in each quadrant ──────────────────────
-  const qLabel = (cx, cy, text, anchor = 'middle') => {
+  // ── Quadrant labels — lifecycle stage + a plain-language read of the axes ──
+  // Stage word = where the genre is in its life; descriptor spells out the two
+  // axes (X = share size, Y = 6-month momentum) so the corner is self-explaining.
+  const qLabel = (cx, cy, stage, desc) => {
     g.append('text')
-      .attr('x', cx).attr('y', cy)
-      .attr('text-anchor', anchor)
-      .attr('fill', '#7a7570')
+      .attr('x', cx).attr('y', cy).attr('text-anchor', 'middle')
+      .attr('fill', '#8a8580')
       .attr('font-family', 'Bebas Neue, Impact, sans-serif')
-      .attr('font-size', 15).attr('letter-spacing', '0.14em')
-      .text(text);
+      .attr('font-size', 16).attr('letter-spacing', '0.16em')
+      .text(stage);
+    g.append('text')
+      .attr('x', cx).attr('y', cy + 13).attr('text-anchor', 'middle')
+      .attr('fill', '#5a5550')
+      .attr('font-family', 'DM Mono, monospace')
+      .attr('font-size', 8.5).attr('letter-spacing', '0.10em')
+      .text(desc);
   };
-  qLabel(xMid + iW / 4, 22,           'DOMINANT · RISING');
-  qLabel(xMid / 2,      22,           'EMERGING');
-  qLabel(xMid + iW / 4, iH - 8,       'MATURE · DECLINING');
-  qLabel(xMid / 2,      iH - 8,       'FADING');
+  qLabel(xMid / 2,      20,      'EMERGING', 'small share · heating up');
+  qLabel(xMid + iW / 4, 20,      'PEAKING',  'big share · heating up');
+  qLabel(xMid + iW / 4, iH - 20, 'MATURE',   'big share · cooling');
+  qLabel(xMid / 2,      iH - 20, 'FADING',   'small share · cooling');
 
 
   // ── Ticks ON the cross axes (no external axes) ────────────────────────────
@@ -1049,7 +1080,7 @@ function renderLifecycleQuadrant(visibleGenres) {
       .attr('x', xMid - 8).attr('y', yp + 3).attr('text-anchor', 'end')
       .attr('fill', '#7a7570').attr('font-family', 'DM Mono, monospace')
       .attr('font-size', 9).attr('letter-spacing', '0.06em')
-      .text((v > 0 ? '+' : '') + v.toFixed(1));
+      .text((v > 0 ? '+' : '') + v.toFixed(1) + ' pp');
   });
 
   // ── Axis driver labels at the start of each cross axis ────────────────────
@@ -1067,13 +1098,13 @@ function renderLifecycleQuadrant(visibleGenres) {
     .attr('d', `M ${iW - 4},${yMid - 4} L ${iW + 4},${yMid} L ${iW - 4},${yMid + 4} Z`)
     .attr('fill', AXIS_COLOR);
 
-  // Y-dimension label (MOMENTUM) anchored at BOTTOM MIDDLE
+  // Y-dimension label (TREND) anchored at BOTTOM MIDDLE
   g.append('text')
     .attr('x', xMid).attr('y', iH + 22).attr('text-anchor', 'middle')
     .attr('fill', '#a09a90')
     .attr('font-family', 'DM Mono, monospace')
     .attr('font-size', 10).attr('letter-spacing', '0.22em')
-    .text('MOMENTUM');
+    .text('6-MO TREND · PP');
 
   // Small arrow at the TOP END of the vertical cross axis, pointing up
   g.append('path')
@@ -1081,10 +1112,6 @@ function renderLifecycleQuadrant(visibleGenres) {
     .attr('fill', AXIS_COLOR);
 
   // ── Draw trajectories ────────────────────────────────────────────────────
-  const lineGen = d3.line()
-    .x(d => xScale(d.share)).y(d => yScale(d.slope))
-    .curve(d3.curveCatmullRom.alpha(0.5));
-
   // Arrowhead defs — one per genre color
   const defs = svg.append('defs');
   trajectories.forEach((t, i) => {
@@ -1099,33 +1126,12 @@ function renderLifecycleQuadrant(visibleGenres) {
   });
 
   trajectories.forEach(t => {
-    const past = t.trail.filter(p => p.kind === 'past');
     const now  = t.trail.find(p => p.kind === 'now');
     const fore = t.trail.find(p => p.kind === 'forecast');
 
-    // Historical trail (only when toggled)
-    if (showHistory && past.length && now) {
-      const fullPath = [...past, now];
-      g.append('path').datum(fullPath)
-        .attr('fill', 'none').attr('stroke', t.color)
-        .attr('stroke-width', 1.4).attr('opacity', 0.4)
-        .attr('d', lineGen);
-
-      past.forEach((p, i) => {
-        g.append('circle')
-          .attr('cx', xScale(p.share)).attr('cy', yScale(p.slope))
-          .attr('r', 3 + i * 0.6)
-          .attr('fill', t.color).attr('opacity', 0.45);
-        g.append('text')
-          .attr('x', xScale(p.share)).attr('y', yScale(p.slope) - 8)
-          .attr('text-anchor', 'middle')
-          .attr('fill', '#5a5550').attr('font-size', 8)
-          .attr('font-family', 'DM Mono, monospace')
-          .text(p.tag);
-      });
-    }
-
-    // Arrow: now → 2030 forecast (always shown)
+    // Arrow bundles two independent moves: X = today's share → 5-yr global
+    // forecast, Y = current trend → projected 6-month trend. Hover highlights
+    // it and pops a small bracket with both moves + EU correlation.
     if (now && fore) {
       const x1 = xScale(now.share);
       const y1 = yScale(now.slope);
@@ -1138,12 +1144,37 @@ function renderLifecycleQuadrant(visibleGenres) {
       const x2t = x2 - (dx / len) * back;
       const y2t = y2 - (dy / len) * back;
 
-      g.append('line')
+      const arrow = g.append('line')
         .attr('x1', x1).attr('y1', y1)
         .attr('x2', x2t).attr('y2', y2t)
         .attr('stroke', t.color).attr('stroke-width', 2)
         .attr('stroke-dasharray', '4 3').attr('opacity', 0.75)
         .attr('marker-end', `url(#${t._arrowId})`);
+
+      const fmt        = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
+      const shareDelta = fore.share - now.share;   // 5-yr share move (X)
+      const tipRows    = [
+        { label: 'Share (5y)', value: `${now.share.toFixed(1)}% → ${fore.share.toFixed(1)}%  (${fmt(shareDelta)} pp)`, color: t.color },
+        { label: 'Trend (6mo)', value: `${fmt(now.slope, 2)} → ${fmt(fore.slope, 2)} pp`, color: t.color },
+      ];
+      if (t.corr.region) {
+        tipRows.push({ label: 'EU tracks', value: `${t.corr.region.toUpperCase()} · r=${fmt(t.corr.r, 2)}`, color: t.color });
+      }
+
+      // Invisible fat hit-area makes the thin dashed arrow easy to hover
+      g.append('line')
+        .attr('x1', x1).attr('y1', y1).attr('x2', x2).attr('y2', y2)
+        .attr('stroke', 'transparent').attr('stroke-width', 16)
+        .style('cursor', 'pointer')
+        .on('mouseenter', (event) => {
+          arrow.attr('stroke-width', 3.5).attr('opacity', 1);
+          tooltip.show(event, tooltipHtml(t.genre.toUpperCase(), tipRows));
+        })
+        .on('mousemove', (event) => tooltip.move(event))
+        .on('mouseleave', () => {
+          arrow.attr('stroke-width', 2).attr('opacity', 0.75);
+          tooltip.hide();
+        });
     }
 
     // "Now" dot — large, filled, prominent
@@ -1154,42 +1185,51 @@ function renderLifecycleQuadrant(visibleGenres) {
         .attr('fill', t.color)
         .attr('stroke', 'var(--bg-surface)').attr('stroke-width', 2);
     }
+  });
 
-    // "2030" outlined dot — only shown when history is on (otherwise the arrow does the talking)
-    if (fore && showHistory) {
-      g.append('circle')
-        .attr('cx', xScale(fore.share)).attr('cy', yScale(fore.slope))
-        .attr('r', 6).attr('fill', 'none')
-        .attr('stroke', t.color).attr('stroke-width', 2)
-        .attr('stroke-dasharray', '2 2');
-      g.append('text')
-        .attr('x', xScale(fore.share)).attr('y', yScale(fore.slope) - 9)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#5a5550').attr('font-size', 8)
-        .attr('font-family', 'DM Mono, monospace')
-        .text('2030');
-    }
+  // ── Genre labels — drawn last (top layer) so they never sit under an arrow ──
+  // Each label starts on the side OPPOSITE its own arrow, then a greedy pass
+  // nudges any that still collide so two names never stack on each other.
+  const FONT_PX = 14, LABEL_H = 15, CHAR_W = 8.4;
+  const labels = trajectories.map(t => {
+    const now  = t.trail.find(p => p.kind === 'now');
+    const fore = t.trail.find(p => p.kind === 'forecast');
+    if (!now) return null;
+    const dotX = xScale(now.share);
+    const dotY = yScale(now.slope);
+    const goesRight = fore ? xScale(fore.share) >= dotX : true;   // arrow heads right?
+    const goesUp    = fore ? yScale(fore.slope)  <  dotY : false; // up = smaller y
+    const text   = t.genre.toUpperCase();
+    const w      = text.length * CHAR_W;
+    const anchor = goesRight ? 'end' : 'start';
+    const x      = goesRight ? dotX - 13 : dotX + 13;             // opposite the arrow
+    const x0     = goesRight ? x - w : x;                         // left edge of the text box
+    return { color: t.color, text, x, x0, w, anchor,
+             y: dotY + (goesUp ? 15 : -7) };
+  }).filter(Boolean);
 
-    // Label at "now" position with genre name + correlation context
-    if (now) {
-      const lx = xScale(now.share) + 14;
-      const ly = yScale(now.slope);
-      g.append('text')
-        .attr('x', lx).attr('y', ly + 4)
-        .attr('fill', t.color)
-        .attr('font-family', 'Bebas Neue, Impact, sans-serif')
-        .attr('font-size', 14).attr('letter-spacing', '0.04em')
-        .text(t.genre.toUpperCase());
-
-      if (t.corr.region && Math.abs(t.corr.r) >= 0.4) {
-        g.append('text')
-          .attr('x', lx).attr('y', ly + 18)
-          .attr('fill', '#5a5550')
-          .attr('font-family', 'DM Mono, monospace')
-          .attr('font-size', 8).attr('letter-spacing', '0.08em')
-          .text(`R=${t.corr.r >= 0 ? '+' : ''}${t.corr.r.toFixed(2)} ${t.corr.region.toUpperCase()}`);
+  // Greedy vertical de-overlap: scan top→bottom, push a label down only when it
+  // both overlaps the previous one horizontally and sits too close vertically.
+  labels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const a = labels[j], b = labels[i];
+      const overlapX = a.x0 < b.x0 + b.w && b.x0 < a.x0 + a.w;
+      if (overlapX && Math.abs(a.y - b.y) < LABEL_H) {
+        b.y = a.y + LABEL_H;
       }
     }
+  }
+
+  labels.forEach(l => {
+    g.append('text')
+      .attr('x', l.x).attr('y', l.y).attr('text-anchor', l.anchor)
+      .attr('fill', l.color)
+      .attr('font-family', 'Bebas Neue, Impact, sans-serif')
+      .attr('font-size', FONT_PX).attr('letter-spacing', '0.04em')
+      .attr('stroke', 'var(--bg-surface)').attr('stroke-width', 3.5)
+      .attr('paint-order', 'stroke')           // halo behind the glyphs
+      .text(l.text);
   });
 
   // ── Legend strip (tiny, bottom-right) ─────────────────────────────────────
@@ -1203,11 +1243,11 @@ function renderLifecycleQuadrant(visibleGenres) {
     .attr('fill', '#a09a90').attr('font-family', 'DM Mono, monospace')
     .attr('font-size', 8).attr('letter-spacing', '0.12em').text('TODAY');
 
-  // Arrow to 2030
+  // Arrow: share→5yr forecast (X) + current→coming trend (Y)
   legG.append('line').attr('x1', 70).attr('y1', 0).attr('x2', 100).attr('y2', 0)
     .attr('stroke', '#a09a90').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3');
   legG.append('path').attr('d', 'M100,-4 L108,0 L100,4 Z').attr('fill', '#a09a90');
   legG.append('text').attr('x', 114).attr('y', 3)
     .attr('fill', '#a09a90').attr('font-family', 'DM Mono, monospace')
-    .attr('font-size', 8).attr('letter-spacing', '0.12em').text('HEADING (2030)');
+    .attr('font-size', 8).attr('letter-spacing', '0.12em').text('HEADING');
 }
