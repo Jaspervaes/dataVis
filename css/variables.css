@@ -14,6 +14,8 @@
   --bg-surface:  #141210;
   --bg-elevated: #1c1916;
   --bg-inset:    #0a0908;
+  --globe-base:  #0e0c0a; /* network-map sphere fill — matches bg in dark mode */
+  --globe-atmo:  #7a6f5e; /* network-map atmosphere halo */
 
   /* ─── THE Accent — acid chartreuse. One colour. Use sparingly. ── */
   --acid:        #c8f000;
@@ -124,6 +126,8 @@
   --bg-surface:  #e6e1d5;
   --bg-elevated: #dfdace;
   --bg-inset:    #e0dbcc;
+  --globe-base:  #ddd3bf; /* soft parchment — a touch darker than cream so the sphere reads, without going muddy */
+  --globe-atmo:  #b9a98c; /* lighter warm halo to match the light paper */
 
   /* The accent is changed from acid chartreuse to a darker moss green in light mode for better readability */
   --acid:        #465c00; 
