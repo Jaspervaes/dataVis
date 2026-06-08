@@ -61,7 +61,13 @@ function regionColour(region) {
   return map[region] || '#7c3aed';
 }
 function bgColour() {
-  return getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim() || '#0e0c0a';
+  const root = getComputedStyle(document.documentElement);
+  return root.getPropertyValue('--globe-base').trim()
+      || root.getPropertyValue('--bg-base').trim()
+      || '#0e0c0a';
+}
+function atmosphereColour() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--globe-atmo').trim() || '#7a6f5e';
 }
 
 // ── Init ─────────────────────────────────────────────────────
@@ -86,11 +92,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     radio.addEventListener('change', () => {
       if (!radio.checked) return;
       granularity = radio.value;
-      // Region totals dwarf country totals — reset the threshold and rescale it.
-      minCollabs = 1;
-      if (minSlider)  minSlider.value = 1;
-      if (minDisplay) minDisplay.textContent = '1+';
-      updateThresholdSlider();
+      // Region totals dwarf country totals. Country level has a long tail of
+      // 1-collab routes that clutter the globe, so start it at 30+; region
+      // level stays at 1+.
+      minCollabs = granularity === 'country' ? 30 : 1;
+      updateThresholdSlider();              // rescale max first (may clamp minCollabs)
+      if (minSlider)  minSlider.value = minCollabs;
+      if (minDisplay) minDisplay.textContent = `${minCollabs}+`;
       render();
     });
   });
@@ -149,7 +157,7 @@ function initGlobe(container) {
   globe = window.Globe()(container)
     .backgroundColor('rgba(0,0,0,0)')
     .showAtmosphere(true)
-    .atmosphereColor('#7a6f5e')
+    .atmosphereColor(atmosphereColour())
     .atmosphereAltitude(0.15)
     .globeImageUrl(null);
 
@@ -199,6 +207,7 @@ function restyleGlobe() {
   const mat = globe.globeMaterial();
   mat.color.set(bgColour());
   mat.emissive.set(bgColour());
+  globe.atmosphereColor(atmosphereColour());
 }
 
 // ── Arc appearance (selection- and layer-aware) ───────────────
