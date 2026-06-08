@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="../css/base.css" />
   <link rel="stylesheet" href="../css/layout.css" />
   <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/resonance-timeline-insights.css" />
 
   <style>
     .section-header {
@@ -359,9 +360,69 @@
             </div>
           </div>
         </div>
-
       </div>
 
+      <!-- Genre Lifecycle Map -->
+      <div class="section-header">
+        <h2 class="section-title">Genre Lifecycle Map</h2>
+        <span class="section-meta">Where each genre sits today · arrow shows where it's heading</span>
+      </div>
+      <div class="lifecycle-meta">
+        <p class="survivorship-note">Four corners, four fates. <strong style="color:var(--text-primary)">X-axis</strong> = how big the genre is now. <strong style="color:var(--text-primary)">Y-axis</strong> = whether it's rising or falling. Combines the long-term catalog trend with the short-term EU chart pulse, weighted by which region currently moves in lockstep with Europe.</p>
+        <button id="toggle-history" class="toggle-btn" type="button">
+          <span class="dot"></span>SHOW HISTORY
+        </button>
+      </div>
+
+      <div id="viz-quadrant" role="img" aria-label="Genre lifecycle trajectory map">
+        <div class="empty-state">
+          <div class="skeleton skeleton-block" style="height:480px;"></div>
+        </div>
+      </div>
+
+      <section class="story-cards" id="genre-forecast-notes" aria-label="Genre forecast notes">
+        <article class="story-card" style="--card-accent: var(--acid)">
+          <header class="story-card-head">
+            <span class="story-card-eyebrow">Biggest Win</span>
+            <span class="story-card-tag" data-tone="up">Electronic</span>
+          </header>
+          <div class="story-card-hero">
+            <span class="story-card-value">+18.4%</span>
+            <span class="story-card-unit">forecast gain</span>
+          </div>
+          <p class="story-card-tagline">
+            Electronic leads the forecast with the largest expected share increase across the full projection horizon.
+          </p>
+        </article>
+
+        <article class="story-card" style="--card-accent: #e5321c">
+          <header class="story-card-head">
+            <span class="story-card-eyebrow">Biggest Loss</span>
+            <span class="story-card-tag" data-tone="down">Hip Hop</span>
+          </header>
+          <div class="story-card-hero">
+            <span class="story-card-value">-14.2%</span>
+            <span class="story-card-unit">forecast decline</span>
+          </div>
+          <p class="story-card-tagline">
+            Hip Hop is projected to slide the most in relative share, reversing some of its recent dominance by 2025.
+          </p>
+        </article>
+
+        <article class="story-card" style="--card-accent: #7ec87e">
+          <header class="story-card-head">
+            <span class="story-card-eyebrow">Rock is dead</span>
+            <span class="story-card-tag" data-tone="flat">Genre exit</span>
+          </header>
+          <div class="story-card-hero">
+            <span class="story-card-value">2026</span>
+            <span class="story-card-unit">no share predicted</span>
+          </div>
+          <p class="story-card-tagline">
+            Rock is forecast to disappear from the share model by 2026, with negligible representation in the projected catalog.
+          </p>
+        </article>
+      </section>
     </main>
   </div>
 

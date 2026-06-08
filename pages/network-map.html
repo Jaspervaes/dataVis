@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="../css/base.css" />
   <link rel="stylesheet" href="../css/layout.css" />
   <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/resonance-timeline-insights.css" />
 
   <script src="../js/theme-toggle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
@@ -230,6 +231,50 @@
            aria-label="3D globe of Europe to non-Europe artist collaborations"
            style="width:100%;height:70vh;min-height:520px;position:relative;">
       </div>
+
+      <section class="story-cards" id="global-collabs-notes" aria-label="Global collabs notes">
+        <article class="story-card" style="--card-accent: var(--acid)">
+          <header class="story-card-head">
+            <span class="story-card-eyebrow">Collaborations</span>
+            <span class="story-card-tag" data-tone="up">Furthest</span>
+          </header>
+          <div class="story-card-hero">
+            <span class="story-card-value">18.400 km</span>
+            <span class="story-card-unit">distance</span>
+          </div>
+          <p class="story-card-tagline">
+            United Kingdom — New Zealand is the longest cross-border music route shown here.
+          </p>
+        </article>
+
+        <article class="story-card" style="--card-accent: #e5321c">
+          <header class="story-card-head">
+            <span class="story-card-eyebrow">Collaborations</span>
+            <span class="story-card-tag" data-tone="down">Most collabs</span>
+          </header>
+          <div class="story-card-hero">
+            <span class="story-card-value">308</span>
+            <span class="story-card-unit">artist pairs</span>
+          </div>
+          <p class="story-card-tagline">
+            United States and United Kingdom artists created 495 songs together — the busiest route in the dataset.
+          </p>
+        </article>
+
+        <article class="story-card" style="--card-accent: #6aabf0">
+          <header class="story-card-head">
+            <span class="story-card-eyebrow">Collaborations</span>
+            <span class="story-card-tag" data-tone="flat">Atlantic axis</span>
+          </header>
+          <div class="story-card-hero">
+            <span class="story-card-value">Europe ↔ North America</span>
+            <span class="story-card-unit">dominant route</span>
+          </div>
+          <p class="story-card-tagline">
+            The transatlantic corridor remains the busiest bridge for European artists working with overseas partners.
+          </p>
+        </article>
+      </section>
 
       <!-- Insight HUD — reparented into #viz-container by network-map.js after
            the globe mounts (globe.gl clears the container's static children). -->
