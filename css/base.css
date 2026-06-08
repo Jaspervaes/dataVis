@@ -14,6 +14,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  overflow-y: scroll; /* always show scrollbar — prevents layout shift and globe scroll trap */
 }
 
 body {
@@ -152,10 +153,10 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────── */
-::-webkit-scrollbar       { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 0; }
-::-webkit-scrollbar-thumb:hover { background: var(--rule-light); }
+::-webkit-scrollbar       { width: 8px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--rule-light); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* ── Focus ───────────────────────────────────────────────────── */
 :focus-visible {

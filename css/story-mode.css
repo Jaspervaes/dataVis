@@ -1,0 +1,182 @@
+/**
+ * story-mode.css — Dead Wax Design System
+ * ─────────────────────────────────────────────────────────────
+ * "Story mode" — a single large, tinted insight panel that
+ * narrates the chapter's headline stat, swapped in for the page's
+ * standard insight cards via a segmented toggle. Activated when a
+ * page is opened from the homepage walkthrough (?story=1).
+ * Injected by js/story-mode.js.
+ * ─────────────────────────────────────────────────────────────
+ */
+
+/* Robust show/hide for the toggled elements (beats class-based display). */
+.story-hidden { display: none !important; }
+
+.story-mode-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* ── Segmented toggle: Story ⇄ Insights ──────────────────────── */
+.story-switch {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--rule);
+  background: var(--bg-surface);
+}
+.story-switch-btn {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  padding: var(--sp-2) var(--sp-4);
+  cursor: pointer;
+  transition: color var(--t-fast), background var(--t-fast);
+  line-height: 1;
+  white-space: nowrap;
+}
+.story-switch-btn + .story-switch-btn { border-left: 1px solid var(--rule); }
+.story-switch-btn:hover { color: var(--text-primary); }
+.story-switch-btn.active {
+  background: var(--acid);
+  color: var(--bg-base);
+}
+
+/* ── The story insight panel ─────────────────────────────────── */
+.story-insight {
+  display: grid;
+  grid-template-columns: 1fr minmax(200px, 260px);
+  gap: var(--sp-8);
+  align-items: stretch;
+  position: relative;
+  padding: var(--sp-6) var(--sp-8);
+  /* Distinct acid-tinted wash to set it apart from the neutral cards. */
+  background:
+    linear-gradient(135deg, var(--acid-dim), transparent 55%),
+    var(--bg-surface);
+  border: 1px solid var(--acid-border);
+  border-left: 3px solid var(--acid);
+  animation: story-fade var(--t-base) ease;
+}
+@keyframes story-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.story-insight-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.story-insight-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--acid);
+}
+.story-insight-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--acid);
+  flex-shrink: 0;
+}
+
+.story-insight-hero {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+}
+.story-insight-stat {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 5vw, 3.6rem);
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+.story-insight-statlabel {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+}
+
+.story-insight-text {
+  font-family: var(--font-body);
+  font-size: var(--size-md);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-snug);
+  color: var(--text-primary);
+  max-width: 46ch;
+  margin: 0;
+}
+
+/* ── "Next chapter" affordance ───────────────────────────────── */
+.story-insight-next {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-4);
+  text-decoration: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--acid);
+  transition: transform var(--t-fast), box-shadow var(--t-fast), border-color var(--t-fast);
+}
+.story-insight-next:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--acid-border);
+}
+.story-insight-next-kicker {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.story-insight-next-label {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.story-insight-next-teaser {
+  font-family: var(--font-body);
+  font-size: var(--size-xs);
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+.story-insight-next-go {
+  margin-top: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--acid);
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 880px) {
+  .story-insight {
+    grid-template-columns: 1fr;
+    gap: var(--sp-6);
+    padding: var(--sp-6);
+  }
+}

@@ -4,6 +4,10 @@
 
 Built for *Data Visualisation in Digital Humanities 2025–2026* at KU Leuven.
 
+> **This README is the technical build guide.** The reasoning behind the design
+> (requirements, encoding choices, alternatives considered and rejected,
+> constraints) lives in [`DESIGN.md`](DESIGN.md).
+
 ---
 
 ## Table of Contents
@@ -49,10 +53,10 @@ No build step. No npm install. No bundler. All dependencies load via CDN.
 | Page | Route | Chart type | Data source |
 |---|---|---|---|
 | Landing | `index.html` | — | — |
-| Cultural Flow | `pages/cultural-flow.html` | Sankey diagram | `spotify-tracks.csv` |
-| Resonance Timeline | `pages/resonance-timeline.html` | Line + area chart | `spotify-tracks.csv` + `global-crises.csv` |
-| Genre Forecast | `pages/genre-forecast.html` | Multi-line + forecast | `genre-trends.csv` |
-| Global Collabs | `pages/network-map.html` | 3D globe (globe.gl) | `artist-connections.csv` |
+| Cultural Flow | `pages/sankey.html` | Sankey diagram | `spotify-tracks-2.csv` |
+| Global Collabs | `pages/network-map.html` | 3D globe (globe.gl) | `artist-connections.csv` + `country-coords.json` |
+| Resonance Timeline | `pages/resonance-timeline.html` | Line + area chart | `datos_merged_1986_2023.csv` + `artist-countries.csv` + `global-crises.csv` |
+| Genre Forecast | `pages/genre-forecast.html` | Multi-line forecast + lifecycle map | `global_genre_share_yearly.csv` + `eu_vs_global_index_monthly.csv` + `regional_monthly_shares.csv` |
 
 All visualisation pages share the same shell: fixed nav, collapsible sidebar with filters, D3 chart area. They are completely independent — you can work on one without touching any other.
 
@@ -572,17 +576,22 @@ Avoid editing `css/variables.css`, `js/filters.js`, `js/tooltip.js`, or `js/main
 
 ## Known Limitations & Next Steps
 
-### Current state (MVP)
-- All four visualisations run on **randomly generated mock data**. The charts are structurally correct and ready to receive real data, but numbers mean nothing yet.
-- The insight cards (data callouts below each chart) have been removed until real data is wired up.
-- No authentication, no backend, no database — pure static site.
+### Current state
+- All four visualisations run on **real data** (Spotify audio/genre data and
+  MusicBrainz collaboration/region metadata), precomputed into the CSV/JSON files
+  in `/data/` by the Python scripts there. Mock generators remain only as
+  last-resort fallbacks if a file fails to load.
+- Insight cards and per-chapter Walkthrough panels are populated from the data.
+- No authentication, no backend, no database: pure static site.
 
-### Immediate next steps
-1. **Populate the CSV files** in `/data/` with the actual Spotify dataset and crisis data.
-2. **Replace mock calls** with `loadCSV()` in each page JS file (see [Wiring Up Real Data](#wiring-up-real-data)).
-3. **Write transform functions** (`transformToSankey`, `transformToNetwork`) to reshape raw CSV rows into the format each chart expects.
-4. **Re-add insight cards** once real computed values are available — the HTML slot and CSS are already built.
-5. **Tune the forecast model** in `genre-forecast.js` — currently simple linear regression; could be replaced with exponential smoothing or a proper time-series model.
+### Next steps
+1. **Sync hardcoded narrative figures** with computed values where any story-card
+   numbers are still hand-written.
+2. **Tune the forecast model** in `genre-forecast.js`: currently a transparent
+   ensemble of linear fits, chosen for honesty over accuracy; could be replaced
+   with exponential smoothing or a proper time-series model.
+3. **Add a global year scrubber** that syncs across all pages, deepening the
+   coordinated-view story.
 
 ### Longer-term ideas
 - Add a global year scrubber that syncs across all pages

@@ -17,6 +17,7 @@
 import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { loadCSV, mockSpotifyTracks, mockGlobalCrises } from '../data-loader.js';
+import { initStoryMode, fx }      from '../story-mode.js';
 
 const CRISIS_COLORS = {
   economic:      '#f0a830',
@@ -162,6 +163,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.addEventListener('filters:changed', render);
   window.addEventListener('resize', render);
+
+  initStoryMode({
+    insightsSelector: '#story-cards',   // the Peak/Break/Floor cards (injected by resonance-timeline-insights.js); the click-a-year panel stays visible above
+    eyebrow:   'Chapter 03 · Resonance Timeline',
+    stat:      '62.7% → 42.7%',
+    statLabel: 'Valence from its 1999 peak to its 2015 floor',
+    body:      "As the world grew sadder, the music grew more danceable. People reached for rhythm when joy slipped out of reach.",
+    next: { href: 'genre-forecast.html?story=1', label: 'Genre Forecast', teaser: 'So where is all of this heading?' },
+    applyPreset() {
+      // Isolate the paradox: valence falling while danceability rises.
+      fx.decade(1986, 2024);
+      fx.group('audio-feature', ['valence', 'danceability']);
+    },
+    clearPreset() {
+      fx.decade(1986, 2024);
+      fx.group('audio-feature', ['energy', 'valence', 'tempo', 'danceability']);
+    },
+  });
 });
 
 // ── Zoom-mode toggle button ─────────────────────────────────

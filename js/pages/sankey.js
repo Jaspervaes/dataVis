@@ -1,14 +1,12 @@
 /**
- * cultural-flow.js
+ * sankey.js
  * ─────────────────────────────────────────────────────────────
- * Sankey diagram: genre flow between continents.
+ * Cultural Flow — Sankey diagram of genre flow by region.
  *
  * Shows how many tracks of each genre originate from each
  * continental region, visualised as proportional flows.
  *
- * TODO: Replace mockSankeyData() with a real data call:
- *   const raw   = await loadCSV('../data/spotify-tracks.csv');
- *   const {nodes, links} = transformToSankey(raw, filters);
+ * Source: data/spotify-tracks-2.csv (loaded at runtime).
  *
  * Depends on:
  *   - D3 v7 (global window.d3)
@@ -21,6 +19,7 @@
 import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { loadCSV }                 from '../data-loader.js';
+import { initStoryMode, fx }       from '../story-mode.js';
 
 // ── Design tokens (must match variables.css) ─────────────────
 const REGION_COLORS = {
@@ -224,21 +223,8 @@ let worldFeatures = null;
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
-  // get spotify-tracks-2.csv through local_musicbrainz.py
   rawTracks = await loadCSV('../data/spotify-tracks-2.csv');
-  console.log('raw rows:', rawTracks.length);
-  console.log('sample row:', rawTracks[0]);
-  const data = transformToSankey(rawTracks, getFilters());
-  console.log('filters:', getFilters());
-  console.log('sankey data:', data);
-  console.log('d3.sankey:', d3.sankey);
-
-  console.log('about to call render');
-  try {
-    render(data);
-  } catch(e) {
-    console.error('render threw:', e);
-  }
+  render(transformToSankey(rawTracks, getFilters()));
 
   window.addEventListener('filters:changed', (e) => {
     render(transformToSankey(rawTracks, e.detail));
@@ -246,6 +232,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.addEventListener('resize', () => {
     render(transformToSankey(rawTracks, getFilters()));
+  });
+
+  initStoryMode({
+    insightsSelector: '#cultural-flow-notes',
+    eyebrow:   'Chapter 01 · Cultural Flow',
+    stat:      '30% → 48.3%',
+    statLabel: "Pop's share of global flow, 1986 to 2025",
+    body:      "Music stopped staying home. Pop swallowed the planet, and the closer you look, the more Europe quietly grows.",
+    next: { href: 'network-map.html?story=1', label: 'Global Collabs', teaser: 'But do those worlds ever actually meet?' },
+    applyPreset() {
+      // Full sweep, every region — the whole arc of Pop's rise in view.
+      fx.decade(1986, 2025);
+      fx.group('region', ['europe', 'north-america', 'latin-america', 'africa', 'asia']);
+    },
+    clearPreset() {
+      fx.decade(1986, 2025);
+      fx.group('region', ['europe', 'north-america', 'latin-america', 'africa', 'asia']);
+    },
   });
 });
 
@@ -269,9 +273,6 @@ async function loadWorldMap() {
 // ── Render ────────────────────────────────────────────────────
 function render(data) {
   const container = document.getElementById('viz-container');
-  console.log('container:', container);
-  console.log('rect:', container?.getBoundingClientRect());
-  console.log('links:', data.links.length);
   if (!container) return;
   container.innerHTML = '';
 

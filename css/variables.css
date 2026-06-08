@@ -32,6 +32,11 @@
   --rose:        #c47fa0;
   --cream:       #f0ebe0;
 
+  /* Genre line colour that needs theme-awareness (the others are vivid enough
+     for both modes). Rock is a neutral cream on dark; on cream paper it must
+     darken or it vanishes. */
+  --genre-rock:  #f0ebe0;
+
   /* ─── Text ───────────────────────────────────────────────── */
   --text-primary:   #f0ebe0;
   --text-secondary: #a09a90;
@@ -130,10 +135,13 @@
   --globe-atmo:  #b9a98c; /* lighter warm halo to match the light paper */
 
   /* The accent is changed from acid chartreuse to a darker moss green in light mode for better readability */
-  --acid:        #465c00; 
+  --acid:        #465c00;
   --acid-dim:    rgba(70, 92, 0, 0.08);
   --acid-mid:    rgba(70, 92, 0, 0.22);
   --acid-border: rgba(70, 92, 0, 0.35);
+
+  /* Rock darkens to a warm charcoal so it stays legible on cream paper. */
+  --genre-rock:  #4a4540;
 
   /* Text — inverse of dark mode */
   --text-primary:   #1c1916;

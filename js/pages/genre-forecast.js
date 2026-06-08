@@ -13,11 +13,12 @@
 import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { loadCSV, mockGenreTrends } from '../data-loader.js';
+import { initStoryMode, fx }      from '../story-mode.js';
 
 const GENRE_COLORS = {
   'Pop':        'var(--acid)',
   'Hip-Hop':    '#e5321c',
-  'Rock':       '#f0ebe0',
+  'Rock':       'var(--genre-rock)',
   'Electronic': '#f0a830',
   'R&B':        '#c47fa0',
   'Latin':      '#6aabf0',
@@ -31,6 +32,20 @@ const HIDDEN_GENRES_HARD = new Set(['Jazz', 'Classical']);  // not featured in t
 const HIST_START    = 1986;
 const FORECAST_START = 2026;
 const FORECAST_END  = 2035;
+
+// ── Cross-view linked highlighting (brushing across the three panels) ─────────
+// Every genre-bound mark carries data-genre. Hovering a genre in any panel
+// (legend, hitlist, lifecycle arrow) dims the rest everywhere, so the forecast
+// chart, the lifecycle map, and the EU hitlist read as one coordinated view.
+const genreKey = g => String(g).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function setGenreHighlight(key) {
+  const root = document.querySelector('.viz-row');
+  if (!root) return;
+  root.querySelectorAll('[data-genre]').forEach(el => {
+    el.classList.toggle('genre-dimmed', !!key && el.getAttribute('data-genre') !== key);
+  });
+}
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let globalSeries   = null;   // Map<genre, {history, forecast, slope}>
@@ -111,9 +126,17 @@ function monthToStr(s) {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
-  // Sync filter state with the HTML slider defaults (initFilters doesn't do this)
-  const startSlider = document.getElementById('filter-decade-start');
-  if (startSlider) startSlider.dispatchEvent(new Event('input', { bubbles: true }));
+  // Sync filter state with the HTML slider defaults (initFilters doesn't do this).
+  // Also keep the display showing just the start year (end is fixed at 2025).
+  const startSlider  = document.getElementById('filter-decade-start');
+  const displayEl    = document.getElementById('filter-decade-display');
+  if (startSlider) {
+    startSlider.addEventListener('input', () => {
+      if (displayEl) displayEl.textContent = startSlider.value;
+    });
+    startSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    if (displayEl) displayEl.textContent = startSlider.value;
+  }
   await loadData();
   render();
   window.addEventListener('filters:changed', render);
@@ -142,6 +165,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
+
+  initStoryMode({
+    insightsSelector: '#genre-forecast-notes',
+    eyebrow:   'Chapter 04 · Genre Forecast',
+    stat:      'Electronic +18.4%',
+    statLabel: 'Rock fades toward silence by 2026',
+    body:      "The curves keep moving. Electronic rises as Rock fades, and Europe's own sound takes the global stage.",
+    next: { href: '../index.html#takeaway', label: 'The takeaway', teaser: 'One thread ties all four chapters together.' },
+    applyPreset() {
+      // Long-term forecast view, Electronic vs Rock, from 2000 on.
+      fx.click('.view-switch-btn[data-view="forecast"]');
+      fx.group('genre', ['Electronic', 'Rock']);
+      fx.range('filter-decade-start', 2000);
+    },
+    clearPreset() {
+      fx.click('.view-switch-btn[data-view="lifecycle"]');
+      fx.group('genre', ['Pop', 'Hip-Hop', 'Rock', 'Electronic', 'R&B', 'Latin', 'Country']);
+      fx.range('filter-decade-start', 2010);
+    },
+  });
+
+  // Insight cards reuse the same linked highlighting: hover a card, spotlight its
+  // genre across the chart, lifecycle map, and hitlist.
+  document.querySelectorAll('#genre-forecast-notes article[data-spotlight]').forEach(card => {
+    const key = genreKey(card.dataset.spotlight);
+    card.addEventListener('mouseenter', () => setGenreHighlight(key));
+    card.addEventListener('mouseleave', () => setGenreHighlight(null));
+  });
 });
 
 // ── Data loading ──────────────────────────────────────────────────────────────
@@ -446,23 +497,27 @@ function renderGlobalChart(visible, startYear, endYear) {
 
   drawn.forEach(({ genre, color, history, forecast }) => {
     const last = history[history.length - 1];
+    const gk   = genreKey(genre);
 
     // Confidence band, anchored at last actual point so fan opens from there
     if (forecast.length && last) {
       const bandData = [{ year: last.year, lower: last.share, upper: last.share }, ...forecast];
       g.append('path').datum(bandData)
+        .attr('data-genre', gk)
         .attr('fill', color).attr('opacity', 0.09)
         .attr('d', bandArea);
     }
 
     // Historical line
     g.append('path').datum(history)
+      .attr('data-genre', gk)
       .attr('fill', 'none').attr('stroke', color)
       .attr('stroke-width', 1.6).attr('d', histLine);
 
     // Annual data dots
     g.selectAll(null).data(history)
       .join('circle')
+      .attr('data-genre', gk)
       .attr('cx', d => xScale(d.year)).attr('cy', d => yScale(d.share))
       .attr('r', history.length > 25 ? 1.8 : 2.6)
       .attr('fill', color).attr('opacity', 0.75);
@@ -471,6 +526,7 @@ function renderGlobalChart(visible, startYear, endYear) {
     if (forecast.length && last) {
       const bridge = [{ year: last.year, share: last.share }, ...forecast];
       g.append('path').datum(bridge)
+        .attr('data-genre', gk)
         .attr('fill', 'none').attr('stroke', color)
         .attr('stroke-width', 2).attr('stroke-dasharray', '5 3')
         .attr('opacity', 0.75).attr('d', forecastLine);
@@ -560,12 +616,15 @@ function renderLegend(svg, visible, width, height, margin, COLS, rowH) {
     const col  = i % cols;
     const row  = Math.floor(i / cols);
     const item = lg.append('g')
+      .attr('data-genre', genreKey(genre))
       .attr('transform', `translate(${col * itemW}, ${row * rh})`)
       .style('cursor', 'pointer')
       .on('click', () => {
         hiddenGenres.has(genre) ? hiddenGenres.delete(genre) : hiddenGenres.add(genre);
         render();
-      });
+      })
+      .on('mouseenter', () => setGenreHighlight(genreKey(genre)))
+      .on('mouseleave', () => setGenreHighlight(null));
 
     const color = GENRE_COLORS[genre] || '#a09a90';
     const dim   = hiddenGenres.has(genre);
@@ -798,6 +857,9 @@ function renderHitlistForecast(visibleGenres) {
     if      (idx < 3 && p.change > 0.5)              cls += ' rising';
     else if (idx >= total - 3 && p.change < -0.5)    cls += ' falling';
     row.className = cls;
+    row.dataset.genre = genreKey(p.genre);
+    row.addEventListener('mouseenter', () => setGenreHighlight(genreKey(p.genre)));
+    row.addEventListener('mouseleave', () => setGenreHighlight(null));
 
     // Left: genre name + subtitle (correlated region)
     const left = document.createElement('div');
@@ -1128,6 +1190,7 @@ function renderLifecycleQuadrant(visibleGenres) {
   trajectories.forEach(t => {
     const now  = t.trail.find(p => p.kind === 'now');
     const fore = t.trail.find(p => p.kind === 'forecast');
+    const gk   = genreKey(t.genre);
 
     // Arrow bundles two independent moves: X = today's share → 5-yr global
     // forecast, Y = current trend → projected 6-month trend. Hover highlights
@@ -1145,6 +1208,7 @@ function renderLifecycleQuadrant(visibleGenres) {
       const y2t = y2 - (dy / len) * back;
 
       const arrow = g.append('line')
+        .attr('data-genre', gk)
         .attr('x1', x1).attr('y1', y1)
         .attr('x2', x2t).attr('y2', y2t)
         .attr('stroke', t.color).attr('stroke-width', 2)
@@ -1168,11 +1232,13 @@ function renderLifecycleQuadrant(visibleGenres) {
         .style('cursor', 'pointer')
         .on('mouseenter', (event) => {
           arrow.attr('stroke-width', 3.5).attr('opacity', 1);
+          setGenreHighlight(gk);
           tooltip.show(event, tooltipHtml(t.genre.toUpperCase(), tipRows));
         })
         .on('mousemove', (event) => tooltip.move(event))
         .on('mouseleave', () => {
           arrow.attr('stroke-width', 2).attr('opacity', 0.75);
+          setGenreHighlight(null);
           tooltip.hide();
         });
     }
@@ -1180,6 +1246,7 @@ function renderLifecycleQuadrant(visibleGenres) {
     // "Now" dot — large, filled, prominent
     if (now) {
       g.append('circle')
+        .attr('data-genre', gk)
         .attr('cx', xScale(now.share)).attr('cy', yScale(now.slope))
         .attr('r', 8)
         .attr('fill', t.color)
@@ -1204,7 +1271,7 @@ function renderLifecycleQuadrant(visibleGenres) {
     const anchor = goesRight ? 'end' : 'start';
     const x      = goesRight ? dotX - 13 : dotX + 13;             // opposite the arrow
     const x0     = goesRight ? x - w : x;                         // left edge of the text box
-    return { color: t.color, text, x, x0, w, anchor,
+    return { key: genreKey(t.genre), color: t.color, text, x, x0, w, anchor,
              y: dotY + (goesUp ? 15 : -7) };
   }).filter(Boolean);
 
@@ -1223,6 +1290,7 @@ function renderLifecycleQuadrant(visibleGenres) {
 
   labels.forEach(l => {
     g.append('text')
+      .attr('data-genre', l.key)
       .attr('x', l.x).attr('y', l.y).attr('text-anchor', l.anchor)
       .attr('fill', l.color)
       .attr('font-family', 'Bebas Neue, Impact, sans-serif')

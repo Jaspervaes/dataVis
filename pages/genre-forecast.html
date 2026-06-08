@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="../css/layout.css" />
   <link rel="stylesheet" href="../css/components.css" />
   <link rel="stylesheet" href="../css/resonance-timeline-insights.css" />
+  <link rel="stylesheet" href="../css/story-mode.css" />
 
   <style>
     .section-header {
@@ -47,6 +48,28 @@
       line-height: 1.55;
       max-width: 64ch;
     }
+    .forecast-range-filter {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      padding: var(--sp-2) var(--sp-4);
+      margin-bottom: var(--sp-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+    }
+    .forecast-range-filter .filter-group-label {
+      white-space: nowrap;
+      margin-bottom: 0;
+    }
+    .forecast-range-filter input[type="range"] {
+      flex: 1;
+    }
+    .forecast-range-filter .range-value-display {
+      white-space: nowrap;
+      min-width: 3em;
+      text-align: center;
+    }
+
     #viz-eu {
       min-height: 280px;
       width: 100%;
@@ -57,6 +80,10 @@
       gap: var(--sp-6);
       align-items: stretch;
     }
+    /* Cross-view linked highlighting: hovering a genre in any panel dims the
+       rest across the forecast chart, lifecycle map, and EU hitlist. */
+    .viz-row [data-genre] { transition: opacity 0.12s ease; }
+    .viz-row [data-genre].genre-dimmed { opacity: 0.12; }
     @media (max-width: 1100px) {
       .viz-row { grid-template-columns: 1fr; }
     }
@@ -93,7 +120,7 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      justify-content: flex-start;
     }
     #viz-hitlist .empty-state { flex: 1; }
 
@@ -173,6 +200,10 @@
       grid-template-columns: 78px 1fr 82px;
       gap: var(--sp-3);
       align-items: center;
+      /* Fill the panel evenly whatever the genre count, so 2 rows don't
+         split to the top and bottom edges. */
+      flex: 1 1 0;
+      min-height: 56px;
       padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-3);
       border-bottom: 1px solid var(--rule);
       position: relative;
@@ -269,28 +300,17 @@
       </div>
       <div class="sidebar-body">
 
-        <div class="filter-group">
-          <span class="filter-group-label">Year Range</span>
-          <div class="range-group">
-            <input type="range" id="filter-decade-start" min="1986" max="2025" value="2010" step="1" aria-label="Start year" />
-            <input type="range" id="filter-decade-end"   min="1986" max="2025" value="2025" step="1" aria-label="End year" />
-            <span class="range-value-display" id="filter-decade-display">2010 – 2025</span>
-          </div>
-          <div class="range-track-labels"><span>1986</span><span>2025</span></div>
-        </div>
-
         <div class="filter-group" role="group" aria-labelledby="lbl-genre">
           <span class="filter-group-label" id="lbl-genre">Genres</span>
           <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Pop"        checked /><span class="filter-swatch" style="background:var(--acid)"></span> Pop</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Hip-Hop"    checked /><span class="filter-swatch" style="background:#e5321c"></span> Hip-Hop</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Rock"       checked /><span class="filter-swatch" style="background:#f0ebe0"></span> Rock</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Rock"       checked /><span class="filter-swatch" style="background:var(--genre-rock)"></span> Rock</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Electronic" checked /><span class="filter-swatch" style="background:#f0a830"></span> Electronic</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="R&amp;B"    checked /><span class="filter-swatch" style="background:#c47fa0"></span> R&amp;B</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Latin"      checked /><span class="filter-swatch" style="background:#6aabf0"></span> Latin</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Country"    checked /><span class="filter-swatch" style="background:#7ec87e"></span> Country</label>
         </div>
 
-        <div class="active-pills" id="active-pills" aria-label="Active filters" aria-live="polite"></div>
       </div>
       <div class="sidebar-footer">
         <button class="btn-reset-filters" id="btn-reset-filters">Reset Filters</button>
@@ -336,7 +356,14 @@
 
           <!-- Global Forecast — where the long-term prediction values come from -->
           <div class="view-panel" data-view="forecast" hidden>
-            <p class="survivorship-note">Share of still-popular catalog tracks by release year (Spotify, 1986–2024) + 10-year ensemble projection 2026–2035. Bands widen with horizon — uncertainty grows the further ahead you look. These global trends drive the momentum axis of the <strong style="color:var(--text-primary)">European Genre Lifecycle Map</strong> — switch back to see where each genre is headed.</p>
+            <p class="survivorship-note">Global genre share of catalog tracks (Spotify, 1986–2025) with a 10-year ensemble projection to 2035. The shaded band shows forecast uncertainty — it widens the further out you look.</p>
+            <div class="forecast-range-filter">
+              <span class="filter-group-label">From</span>
+              <input type="range" id="filter-decade-start" min="1986" max="2024" value="2010" step="1" aria-label="Start year" />
+              <span class="range-value-display" id="filter-decade-display">2010</span>
+              <span class="filter-group-label">to 2025</span>
+              <input type="hidden" id="filter-decade-end" value="2025" />
+            </div>
             <div class="viz-wrapper">
               <div id="viz-global" role="img" aria-label="Genre share trend chart loading">
                 <div class="empty-state">
@@ -362,26 +389,8 @@
         </div>
       </div>
 
-      <!-- Genre Lifecycle Map -->
-      <div class="section-header">
-        <h2 class="section-title">Genre Lifecycle Map</h2>
-        <span class="section-meta">Where each genre sits today · arrow shows where it's heading</span>
-      </div>
-      <div class="lifecycle-meta">
-        <p class="survivorship-note">Four corners, four fates. <strong style="color:var(--text-primary)">X-axis</strong> = how big the genre is now. <strong style="color:var(--text-primary)">Y-axis</strong> = whether it's rising or falling. Combines the long-term catalog trend with the short-term EU chart pulse, weighted by which region currently moves in lockstep with Europe.</p>
-        <button id="toggle-history" class="toggle-btn" type="button">
-          <span class="dot"></span>SHOW HISTORY
-        </button>
-      </div>
-
-      <div id="viz-quadrant" role="img" aria-label="Genre lifecycle trajectory map">
-        <div class="empty-state">
-          <div class="skeleton skeleton-block" style="height:480px;"></div>
-        </div>
-      </div>
-
       <section class="story-cards" id="genre-forecast-notes" aria-label="Genre forecast notes">
-        <article class="story-card" style="--card-accent: var(--acid)">
+        <article class="story-card" data-spotlight="Electronic" style="--card-accent: var(--acid)">
           <header class="story-card-head">
             <span class="story-card-eyebrow">Biggest Win</span>
             <span class="story-card-tag" data-tone="up">Electronic</span>
@@ -395,7 +404,7 @@
           </p>
         </article>
 
-        <article class="story-card" style="--card-accent: #e5321c">
+        <article class="story-card" data-spotlight="Hip-Hop" style="--card-accent: #e5321c">
           <header class="story-card-head">
             <span class="story-card-eyebrow">Biggest Loss</span>
             <span class="story-card-tag" data-tone="down">Hip Hop</span>
@@ -409,7 +418,7 @@
           </p>
         </article>
 
-        <article class="story-card" style="--card-accent: #7ec87e">
+        <article class="story-card" data-spotlight="Rock" style="--card-accent: #7ec87e">
           <header class="story-card-head">
             <span class="story-card-eyebrow">Rock is dead</span>
             <span class="story-card-tag" data-tone="flat">Genre exit</span>
@@ -423,6 +432,13 @@
           </p>
         </article>
       </section>
+
+      <p class="data-source">
+        Data: <a href="https://www.spotify.com" target="_blank" rel="noopener">Spotify</a>.
+        Global genre streaming share 1986 to 2025, derived via the Spotify Web API.
+        EU influence index computed from <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a> artist metadata (CC0).
+      </p>
+
     </main>
   </div>
 

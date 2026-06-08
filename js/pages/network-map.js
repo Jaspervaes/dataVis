@@ -21,6 +21,7 @@
 import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }    from '../tooltip.js';
 import { loadCSV }                 from '../data-loader.js';
+import { initStoryMode, fx }       from '../story-mode.js';
 
 const CONNECTIONS_PATH = '../data/artist-connections.csv';
 const PLACEHOLDER_PATH = '../data/artist-connections-placeholder.csv';
@@ -150,6 +151,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('filters:changed', render);
   window.addEventListener('themechanged',    () => { restyleGlobe(); render(); });
   window.addEventListener('resize',          sizeGlobe);
+
+  initStoryMode({
+    insightsSelector: '#global-collabs-notes',
+    eyebrow:   'Chapter 02 · Global Collabs',
+    stat:      '308 pairs, 495 songs',
+    statLabel: 'The US and UK, the busiest corridor in music',
+    body:      "The studio went global. Artists an ocean apart now write together, and Europe sits at the heart of the busiest pipeline in music.",
+    next: { href: 'resonance-timeline.html?story=1', label: 'Resonance Timeline', teaser: 'When they collide, how does it feel?' },
+    applyPreset() {
+      // Drop to country detail so the US–UK corridor reads as its own arc.
+      fx.decade(1986, 2025);
+      fx.group('region', ['europe', 'north america', 'latin america', 'africa', 'asia', 'oceania']);
+      fx.checkbox('filter-europe-only', false);
+      fx.radio('granularity', 'country');   // its handler raises the min-collabs floor
+    },
+    clearPreset() {
+      fx.radio('granularity', 'region');
+      fx.decade(1986, 2025);
+      fx.checkbox('filter-europe-only', false);
+      fx.group('region', ['europe', 'north america', 'latin america', 'africa', 'asia', 'oceania']);
+    },
+  });
 });
 
 // ── Globe setup ──────────────────────────────────────────────
@@ -183,6 +206,19 @@ function initGlobe(container) {
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.35;
   controls.enableDamping = true;
+
+  // Disable wheel zoom so OrbitControls skips preventDefault and native page
+  // scroll works. Ctrl/Meta re-enables zoom (standard map pattern).
+  controls.enableZoom = false;
+  const setZoom = on => { if (globe) globe.controls().enableZoom = on; };
+  document.addEventListener('keydown', e => { if (e.key === 'Control' || e.key === 'Meta') setZoom(true);  });
+  document.addEventListener('keyup',   e => { if (e.key === 'Control' || e.key === 'Meta') setZoom(false); });
+  window.addEventListener('blur', () => setZoom(false));
+
+  // Show hint on first scroll-without-Ctrl over the globe.
+  container.addEventListener('wheel', e => {
+    if (!e.ctrlKey && !e.metaKey) showScrollHint(container);
+  }, { passive: true });
 
   sizeGlobe();
 }
@@ -617,4 +653,27 @@ function showMessage(container, title, desc) {
       <p class="empty-state-title">${title}</p>
       <p class="empty-state-desc">${desc}</p>
     </div>`;
+}
+
+let _scrollHintTimer = null;
+function showScrollHint(container) {
+  let hint = container.querySelector('.globe-scroll-hint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.className = 'globe-scroll-hint';
+    hint.textContent = 'Hold Ctrl to zoom';
+    hint.style.cssText = [
+      'position:absolute', 'bottom:16px', 'right:50%', 'transform:translateX(50%)',
+      'z-index:6', 'padding:5px 12px',
+      'font-family:var(--font-mono)', 'font-size:11px',
+      'letter-spacing:var(--tracking-wide)', 'text-transform:uppercase',
+      'color:var(--text-secondary)', 'background:var(--bg-elevated)',
+      'border:1px solid var(--border)',
+      'opacity:0', 'transition:opacity 0.2s ease', 'pointer-events:none',
+    ].join(';');
+    container.appendChild(hint);
+  }
+  hint.style.opacity = '1';
+  clearTimeout(_scrollHintTimer);
+  _scrollHintTimer = setTimeout(() => { hint.style.opacity = '0'; }, 1800);
 }

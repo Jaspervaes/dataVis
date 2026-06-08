@@ -26,19 +26,19 @@ const MARKUP = `
 <section class="story-cards" id="story-cards" aria-label="Timeline insights">
   <article class="story-card" id="story-card-peak" style="--card-accent: var(--acid)">
     <header class="story-card-head">
-      <span class="story-card-eyebrow" id="story-peak-title">Peak · 1986</span>
+      <span class="story-card-eyebrow" id="story-peak-title">Peak · 1999</span>
       <span class="story-card-tag" data-tone="up">All-time high</span>
     </header>
     <div class="story-card-hero">
-      <span class="story-card-value" id="story-peak-value">60.1%</span>
+      <span class="story-card-value" id="story-peak-value">62.7%</span>
       <span class="story-card-unit">valence</span>
     </div>
     <p class="story-card-tagline">
-      Music's happiest year — in the midst of the <strong>AIDS crisis</strong> and the <strong>S&amp;L crisis</strong>. It hasn't been this high since.
+      Music's happiest year, at the height of pre-millennium optimism and the launch of the <strong>Euro</strong>. It hasn't been this high since.
     </p>
     <footer class="story-card-chips">
-      <span class="story-chip" style="--chip-color:#f0a830">AIDS crisis</span>
-      <span class="story-chip" style="--chip-color:#e5321c">S&amp;L crisis</span>
+      <span class="story-chip" style="--chip-color:#f0a830">Euro launch</span>
+      <span class="story-chip" style="--chip-color:#e5321c">Kosovo War</span>
     </footer>
   </article>
 
@@ -48,7 +48,7 @@ const MARKUP = `
       <span class="story-card-tag" data-tone="down">Sharpest drop</span>
     </header>
     <div class="story-card-hero">
-      <span class="story-card-value" id="story-break-value">-2,4%</span>
+      <span class="story-card-value" id="story-break-value">-7.3%</span>
       <span class="story-card-unit">valence</span>
     </div>
     <p class="story-card-tagline">
@@ -63,15 +63,15 @@ const MARKUP = `
 
   <article class="story-card" id="story-card-floor" style="--card-accent: #6aabf0">
     <header class="story-card-head">
-      <span class="story-card-eyebrow" id="story-floor-title">Steady uptick · 1986–2018</span>
+      <span class="story-card-eyebrow" id="story-floor-title">Danceability peak · 2018</span>
       <span class="story-card-tag" data-tone="flat">Danceability change</span>
     </header>
     <div class="story-card-hero">
-      <span class="story-card-value" id="story-floor-value">42.7%</span>
+      <span class="story-card-value" id="story-floor-value">67.0%</span>
       <span class="story-card-unit">danceability</span>
     </div>
     <p class="story-card-tagline">
-      despite sadder music, it got <em>more</em> danceable.
+      Despite sadder music, it grew <em>more</em> danceable, climbing to its high in 2018.
     </p>
   </article>
 </section>`;
