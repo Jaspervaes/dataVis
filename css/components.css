@@ -504,6 +504,212 @@
 }
 
 /* ══════════════════════════════════════════════════════════════
+   WALKTHROUGH — one argument, told in four chapters (zigzag)
+══════════════════════════════════════════════════════════════ */
+
+.walk-lede {
+  font-family: var(--font-body);
+  font-weight: var(--weight-light);
+  font-size: var(--size-lg);
+  line-height: var(--leading-snug);
+  color: var(--text-secondary);
+  max-width: 34ch;
+  margin: 0 0 var(--sp-8);
+}
+.walk-lede strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.walk {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Chapter card — alternating two-column rows ─────────────── */
+.walk-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-6) var(--sp-2);
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--t-base);
+}
+.walk-card:hover { transform: translateY(-3px); }
+
+.walk-visual { grid-column: 1; grid-row: 1; }
+.walk-text   { grid-column: 2; grid-row: 1; }
+.walk-card--flip .walk-visual { grid-column: 2; grid-row: 1; }
+.walk-card--flip .walk-text   { grid-column: 1; grid-row: 1; }
+
+/* ── Mini-viz preview frame ─────────────────────────────────── */
+.walk-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 10;
+  padding: var(--sp-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--acid);                 /* currentColor for the mini-viz accents */
+  transition: border-color var(--t-base), background var(--t-base), box-shadow var(--t-base);
+}
+.walk-card:hover .walk-visual {
+  border-color: var(--acid);
+  box-shadow: var(--shadow-md);
+}
+.walk-visual svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Chapter text ───────────────────────────────────────────── */
+.walk-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.walk-num {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+  transition: color var(--t-fast);
+}
+.walk-card:hover .walk-num { color: var(--acid); }
+
+.walk-q {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-weight: var(--weight-light);
+  font-size: var(--size-lg);
+  line-height: var(--leading-snug);
+  color: var(--text-secondary);
+}
+
+.walk-title {
+  font-family: var(--font-display);
+  font-size: var(--size-2xl);
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.walk-take {
+  font-family: var(--font-body);
+  font-weight: var(--weight-light);
+  font-size: var(--size-md);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  max-width: 46ch;
+}
+
+.walk-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-primary);
+  transition: color var(--t-fast), gap var(--t-fast);
+}
+.walk-card:hover .walk-cta {
+  color: var(--acid);
+  gap: var(--sp-4);
+}
+
+/* ── The thread — dotted serpentine connector between cards ─── */
+.walk-link {
+  display: block;
+  height: 84px;
+  margin: calc(var(--sp-2) * -1) 0;
+  color: var(--acid-border);
+  pointer-events: none;
+}
+.walk-link svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.walk-link path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 9;
+  vector-effect: non-scaling-stroke;
+}
+.walk-link--flip { transform: scaleX(-1); }
+
+/* ── Closing pull-quote — the globalization thread ──────────── */
+.walk-takeaway {
+  margin: var(--sp-16) 0 0;
+  padding: var(--sp-8);
+  border-left: 3px solid var(--acid);
+  background: var(--acid-dim);
+}
+.walk-takeaway-mark {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--acid);
+  margin-bottom: var(--sp-3);
+}
+.walk-takeaway p {
+  font-family: var(--font-body);
+  font-weight: var(--weight-light);
+  font-size: var(--size-lg);
+  line-height: var(--leading-snug);
+  color: var(--text-secondary);
+  max-width: 62ch;
+}
+.walk-takeaway strong {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+@media (max-width: 860px) {
+  .walk-card {
+    grid-template-columns: 1fr;
+    gap: var(--sp-6);
+    padding: var(--sp-4) 0;
+  }
+  /* stack visual on top, text below — regardless of flip */
+  .walk-visual,
+  .walk-card--flip .walk-visual { grid-column: 1; grid-row: 1; }
+  .walk-text,
+  .walk-card--flip .walk-text   { grid-column: 1; grid-row: 2; }
+
+  .walk-link {
+    height: 48px;
+    margin: 0;
+    transform: none;          /* straight short tick on mobile */
+  }
+  .walk-link svg { display: none; }
+  .walk-link::after {
+    content: '';
+    display: block;
+    width: 2px;
+    height: 100%;
+    margin: 0 auto;
+    background: repeating-linear-gradient(
+      var(--acid-border) 0 2px, transparent 2px 10px);
+  }
+  .walk-title { font-size: var(--size-xl); }
+}
+
+/* ══════════════════════════════════════════════════════════════
    INSIGHT CARDS — newspaper data points
 ══════════════════════════════════════════════════════════════ */
 

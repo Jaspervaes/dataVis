@@ -138,54 +138,165 @@
   </section>
 
   <!-- ═══════════════════════════════════════════════════════
-       FEATURE CARDS — four visualisations
+       WALKTHROUGH — one argument, told in four chapters
   ════════════════════════════════════════════════════════ -->
-  <section class="homepage-section" aria-labelledby="explore-heading">
-    <h2 class="visually-hidden" id="explore-heading">Visualisations</h2>
+  <section class="homepage-section" aria-labelledby="walkthrough-heading">
+    <div class="section-header">
+      <div>
+        <span class="section-kicker">The Story</span>
+        <h2 class="section-title" id="walkthrough-heading">How the world rewired music</h2>
+      </div>
+      <span class="section-count">Four chapters, one thread</span>
+    </div>
 
-    <div class="cards-grid">
+    <p class="walk-lede">
+      Over four decades, <strong>music stopped being local.</strong> Borders dissolved, not
+      only in how songs travel but in how they actually sound. Crises, digital connection and
+      cultural collision rewired what the world listens to, how it's made, and how it feels.
+    </p>
+
+    <div class="walk">
 
       <!-- 01 Cultural Flow -->
-      <a href="pages/sankey.html" class="feature-card" aria-label="Open Cultural Flow visualisation">
-        <span class="feature-card-num" aria-hidden="true">01</span>
-        <h3 class="feature-card-title">Cultural<br>Flow</h3>
-        <div class="feature-card-footer">
-          <span class="feature-card-tag">Sankey Diagram</span>
-          <span class="feature-card-arrow">Open →</span>
-        </div>
+      <a href="pages/sankey.html" class="walk-card" aria-label="Open Cultural Flow visualisation">
+        <span class="walk-visual" aria-hidden="true">
+          <svg viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M40 30 C120 30 170 26 244 26 L244 60 C170 60 120 80 40 80 Z" fill="rgba(200,240,0,0.32)"/>
+            <path d="M40 80 C120 80 170 72 244 72 L244 100 C170 100 120 112 40 112 Z" fill="rgba(106,171,240,0.32)"/>
+            <path d="M40 112 C120 112 170 110 244 110 L244 152 C170 152 120 152 40 152 Z" fill="rgba(240,168,48,0.32)"/>
+            <rect x="32" y="28" width="8" height="124" fill="currentColor"/>
+            <rect x="240" y="24" width="8" height="78" fill="rgba(106,171,240,0.9)"/>
+            <rect x="240" y="108" width="8" height="46" fill="rgba(240,168,48,0.9)"/>
+          </svg>
+        </span>
+        <span class="walk-text">
+          <span class="walk-num">01 · Sankey Diagram</span>
+          <span class="walk-q">Who makes the music, and where?</span>
+          <h3 class="walk-title">Cultural Flow</h3>
+          <p class="walk-take">
+            In 1986 the map was simple: genres stayed close to home. Four decades on, Pop has
+            colonised the planet, swelling from 30% to 48.3% of everything we stream. The quiet
+            twist? The closer you look, the more Europe grows, expanding its share instead of
+            vanishing into North America's shadow.
+          </p>
+          <span class="walk-cta">See the flow <span aria-hidden="true">→</span></span>
+        </span>
       </a>
 
-      <!-- 02 Global Collabs -->
-      <a href="pages/network-map.html" class="feature-card" aria-label="Open Global Collabs visualisation">
-        <span class="feature-card-num" aria-hidden="true">02</span>
-        <h3 class="feature-card-title">Global<br>Collabs</h3>
-        <div class="feature-card-footer">
-          <span class="feature-card-tag">3D Globe</span>
-          <span class="feature-card-arrow">Open →</span>
-        </div>
+      <span class="walk-link" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M25 0 C25 62 75 38 75 100"/></svg>
+      </span>
+
+      <!-- 02 Collaborations -->
+      <a href="pages/network-map.html" class="walk-card walk-card--flip" aria-label="Open Global Collabs visualisation">
+        <span class="walk-visual" aria-hidden="true">
+          <svg viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="140" cy="90" r="64" stroke="#8c857a" stroke-width="1.4" opacity="0.55"/>
+            <ellipse cx="140" cy="90" rx="64" ry="25" stroke="#8c857a" stroke-width="1.2" opacity="0.4"/>
+            <ellipse cx="140" cy="90" rx="27" ry="64" stroke="#8c857a" stroke-width="1.2" opacity="0.4"/>
+            <line x1="76" y1="90" x2="204" y2="90" stroke="#8c857a" stroke-width="1.2" opacity="0.4"/>
+            <path d="M96 56 Q 140 8 190 70" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M104 128 Q 156 152 196 100" stroke="rgba(196,127,160,0.95)" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="96" cy="56" r="5" fill="rgba(229,50,28,0.95)"/>
+            <circle cx="190" cy="70" r="5" fill="rgba(106,171,240,0.95)"/>
+            <circle cx="104" cy="128" r="5" fill="currentColor"/>
+            <circle cx="196" cy="100" r="5" fill="rgba(196,127,160,0.95)"/>
+          </svg>
+        </span>
+        <span class="walk-text">
+          <span class="walk-num">02 · 3D Globe</span>
+          <span class="walk-q">But do those worlds ever actually meet?</span>
+          <h3 class="walk-title">Global Collabs</h3>
+          <p class="walk-take">
+            Then the borders dissolved. Artists stopped needing the same studio, the same city,
+            even the same continent, and collaboration across regions exploded. The US and UK
+            axis alone anchors 308 partnerships across 495 songs, parking Europe at the centre
+            of the world's busiest creative pipeline. The internet didn't just move music. It
+            started writing it together.
+          </p>
+          <span class="walk-cta">Spin the globe <span aria-hidden="true">→</span></span>
+        </span>
       </a>
 
-      <!-- 03 Resonance Timeline -->
-      <a href="pages/resonance-timeline.html" class="feature-card" aria-label="Open Resonance Timeline visualisation">
-        <span class="feature-card-num" aria-hidden="true">03</span>
-        <h3 class="feature-card-title">Resonance<br>Timeline</h3>
-        <div class="feature-card-footer">
-          <span class="feature-card-tag">Line Chart</span>
-          <span class="feature-card-arrow">Open →</span>
-        </div>
+      <span class="walk-link walk-link--flip" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M25 0 C25 62 75 38 75 100"/></svg>
+      </span>
+
+      <!-- 03 Resonance -->
+      <a href="pages/resonance-timeline.html" class="walk-card" aria-label="Open Resonance Timeline visualisation">
+        <span class="walk-visual" aria-hidden="true">
+          <svg viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="resFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="currentColor" stop-opacity="0.32"/>
+                <stop offset="1" stop-color="currentColor" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="26" y1="152" x2="256" y2="152" stroke="#8c857a" stroke-width="1.2" opacity="0.4"/>
+            <path d="M26 124 C70 116 86 60 116 74 C150 90 168 38 200 66 C232 92 244 52 256 44 L256 152 L26 152 Z" fill="url(#resFill)"/>
+            <path d="M26 124 C70 116 86 60 116 74 C150 90 168 38 200 66 C232 92 244 52 256 44" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="116" cy="74" r="4.5" fill="currentColor"/>
+            <circle cx="200" cy="66" r="4.5" fill="rgba(229,50,28,0.95)"/>
+          </svg>
+        </span>
+        <span class="walk-text">
+          <span class="walk-num">03 · Line Chart</span>
+          <span class="walk-q">When they collide, how does it feel?</span>
+          <h3 class="walk-title">Resonance Timeline</h3>
+          <p class="walk-take">
+            Here the data starts to feel. Happiness peaked in 1999 at 62.7% valence, just as
+            Europe launched the Euro and rode a wave of optimism, right before the crash. It hit
+            the floor in 2015, the year of the refugee crisis and the Paris attacks. Yet as the
+            world grew sadder, the music grew more danceable: people reached for rhythm when joy
+            slipped out of reach.
+          </p>
+          <span class="walk-cta">Play the timeline <span aria-hidden="true">→</span></span>
+        </span>
       </a>
 
-      <!-- 04 Genre Forecast -->
-      <a href="pages/genre-forecast.html" class="feature-card" aria-label="Open Genre Forecast visualisation">
-        <span class="feature-card-num" aria-hidden="true">04</span>
-        <h3 class="feature-card-title">Genre<br>Forecast</h3>
-        <div class="feature-card-footer">
-          <span class="feature-card-tag">Forecast Charts</span>
-          <span class="feature-card-arrow">Open →</span>
-        </div>
+      <span class="walk-link" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M25 0 C25 62 75 38 75 100"/></svg>
+      </span>
+
+      <!-- 04 Forecast -->
+      <a href="pages/genre-forecast.html" class="walk-card walk-card--flip" aria-label="Open Genre Forecast visualisation">
+        <span class="walk-visual" aria-hidden="true">
+          <svg viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <line x1="158" y1="24" x2="158" y2="158" stroke="#8c857a" stroke-width="1.2" stroke-dasharray="3 5" opacity="0.5"/>
+            <path d="M156 92 L256 74 L256 116 Z" fill="currentColor" opacity="0.14"/>
+            <path d="M26 42 C80 60 132 82 156 94" stroke="rgba(229,50,28,0.95)" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M26 150 C80 132 132 104 156 94" stroke="rgba(106,171,240,0.95)" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M156 94 C196 92 226 90 256 88" stroke="rgba(229,50,28,0.9)" stroke-width="2.2" stroke-dasharray="4 5" stroke-linecap="round"/>
+            <path d="M156 94 C196 96 226 98 256 100" stroke="rgba(106,171,240,0.9)" stroke-width="2.2" stroke-dasharray="4 5" stroke-linecap="round"/>
+            <circle cx="156" cy="94" r="5" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="walk-text">
+          <span class="walk-num">04 · Trend Charts</span>
+          <span class="walk-q">So where is all of this heading?</span>
+          <h3 class="walk-title">Genre Forecast</h3>
+          <p class="walk-take">
+            Push the curves forward and the genres swap places. Electronic climbs 18.4%, Hip Hop
+            slides 14.2%, and Rock is on course to flatline by 2026. Electronic's rise is really
+            Europe's rise: the continent of Berlin techno and Ibiza nights watching its native
+            sound seize the global stage. The natural evolution of a connected culture, or the
+            loss of something? The line keeps moving.
+          </p>
+          <span class="walk-cta">Read the forecast <span aria-hidden="true">→</span></span>
+        </span>
       </a>
 
     </div>
+
+    <blockquote class="walk-takeaway">
+      <span class="walk-takeaway-mark" aria-hidden="true">The thread</span>
+      <p>
+        One variable runs beneath all four: <strong>globalisation.</strong> It's why Pop
+        dominates, why Europe keeps gaining ground, why collaborations exploded, why the sound
+        shifted, and why the genres are converging. Not four visualisations, but one argument,
+        told in four chapters.
+      </p>
+    </blockquote>
   </section>
 
   <!-- ═══════════════════════════════════════════════════════
