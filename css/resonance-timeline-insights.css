@@ -82,6 +82,14 @@
   letter-spacing: -0.03em;
 }
 
+/* Word/phrase heroes (e.g. "Europe ↔ North America", "Broadening") shrink
+   so they read as a label, not a big numeric stat that overruns the card. */
+.story-card-value--text {
+  font-size: var(--size-lg);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+
 .story-card-unit {
   font-family: var(--font-body);
   font-size: var(--size-xs);
@@ -106,7 +114,7 @@
 .story-card-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin-top: auto;
   padding-top: var(--sp-3);
   border-top: 1px dashed var(--border);
@@ -115,24 +123,24 @@
 .story-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px 3px 6px;
+  gap: 3px;
+  padding: 2px 6px 2px 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: var(--weight-medium);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
+  letter-spacing: var(--tracking-normal);
   color: var(--chip-color, var(--text-muted));
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid currentColor;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
   border-radius: 999px;
   white-space: nowrap;
 }
 
 .story-chip::before {
   content: "";
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--chip-color, currentColor);
   flex-shrink: 0;

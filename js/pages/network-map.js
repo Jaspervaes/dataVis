@@ -47,6 +47,7 @@ let minCollabs    = 1;         // hide routes below this many collaborations
 let maxRouteTotal = 1;         // busiest visible route — stroke scales against this
 let granularity   = 'region';  // 'region' (overview) | 'country' (detail)
 let pinnedArc     = null;      // corridor kept open on click
+let spotlightPair = null;      // {a,b} region pair spotlit by an insight-card hover
 
 // ── Theme-reactive colours (read CSS vars at call time) ───────
 function regionColour(region) {
@@ -173,6 +174,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       fx.group('region', ['europe', 'north america', 'latin america', 'africa', 'asia', 'oceania']);
     },
   });
+
+  // Linked highlighting: hovering a story card spotlights its region corridor
+  // on the globe. Cards carry the two region endpoints as data attributes.
+  document.querySelectorAll('#global-collabs-notes [data-spotlight-region-a]').forEach(card => {
+    const pair = { a: card.dataset.spotlightRegionA, b: card.dataset.spotlightRegionB };
+    card.addEventListener('mouseenter', () => setGlobeSpotlight(pair));
+    card.addEventListener('mouseleave', () => setGlobeSpotlight(null));
+  });
 });
 
 // ── Globe setup ──────────────────────────────────────────────
@@ -249,12 +258,19 @@ function restyleGlobe() {
 // ── Arc appearance (selection- and layer-aware) ───────────────
 function baseOf(d) { return d.isPulse ? d.base : d; }
 
+// True when an insight card is spotlighting this corridor's region pair.
+function arcMatchesSpotlight(c) {
+  if (!spotlightPair) return false;
+  const { a, b } = spotlightPair;
+  return (c.regionA === a && c.regionB === b) || (c.regionA === b && c.regionB === a);
+}
+
 function arcColour(d) {
   const real = baseOf(d);
   let alpha;
-  if (!pinnedArc)              alpha = d.isPulse ? 0.95 : 0.62;
-  else if (real === pinnedArc) alpha = d.isPulse ? 1.0  : 0.95;
-  else                         alpha = 0.05;
+  if (pinnedArc)                  alpha = real === pinnedArc ? (d.isPulse ? 1.0 : 0.95) : 0.05;
+  else if (spotlightPair)         alpha = arcMatchesSpotlight(real) ? (d.isPulse ? 1.0 : 0.9) : 0.05;
+  else                            alpha = d.isPulse ? 0.95 : 0.62;
   return [rgbaWithAlpha(d.cAhex, alpha), rgbaWithAlpha(d.cBhex, alpha)];
 }
 
@@ -263,7 +279,9 @@ function arcStrokeFor(d) {
   // Map [1 .. maxRouteTotal] → [1.0 .. 6.5] px on a sqrt curve.
   const frac = maxRouteTotal > 1 ? Math.sqrt((c.totalCollabs - 1) / (maxRouteTotal - 1)) : 0;
   const base = 1.0 + frac * 5.5;
-  return c === pinnedArc ? base + 1.5 : base;
+  if (c === pinnedArc) return base + 1.5;
+  if (!pinnedArc && arcMatchesSpotlight(c)) return base + 1.5;
+  return base;
 }
 
 // Base line solid; pulse = a short bright segment travelling along it (motion, no gap).
@@ -283,6 +301,22 @@ function refreshArcStyles() {
     .arcDashLength(arcDashLengthFor)
     .arcDashGap(arcDashGapFor)
     .arcDashAnimateTime(arcDashAnimateFor);
+}
+
+// ── Linked highlighting: spotlight a region corridor from an insight card ──
+// Hovering a Global-Collabs story card dims every arc except the ones on its
+// region corridor (e.g. Europe ↔ North America), so the card and the globe
+// read as one view (mirrors the genre-forecast brushing pattern). A pinned
+// arc takes precedence. pair = {a, b} region names | null.
+function setGlobeSpotlight(pair) {
+  spotlightPair = pair;
+  // If nothing on screen matches (e.g. that corridor is below the threshold
+  // or hidden at this granularity), don't blank the whole globe — just no-op.
+  if (pair && globe) {
+    const arcs = globe.arcsData() || [];
+    if (!arcs.some(d => arcMatchesSpotlight(baseOf(d)))) spotlightPair = null;
+  }
+  refreshArcStyles();
 }
 
 // ── Render ────────────────────────────────────────────────────

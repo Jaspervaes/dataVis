@@ -251,7 +251,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       fx.group('region', ['europe', 'north-america', 'latin-america', 'africa', 'asia']);
     },
   });
+
+  // Linked highlighting: hovering a story card isolates its genre's flow in
+  // the Sankey (its node + the region links feeding it). Mirrors the
+  // genre-forecast brushing pattern. Listeners live on the static cards, so
+  // they survive the diagram re-rendering on filter changes.
+  document.querySelectorAll('#cultural-flow-notes [data-spotlight-genre]').forEach(card => {
+    const genre = card.dataset.spotlightGenre;
+    card.addEventListener('mouseenter', () => setFlowHighlight(genre));
+    card.addEventListener('mouseleave', () => setFlowHighlight(null));
+  });
 });
+
+// ── Linked highlighting ───────────────────────────────────────
+// Dim every Sankey mark that isn't part of `genre`'s flow. Region (source)
+// nodes have no data-genre, so they stay lit — they feed every genre.
+function setFlowHighlight(genre) {
+  document.querySelectorAll('#viz-container [data-genre]')
+    .forEach(el => el.classList.toggle(
+      'flow-dimmed', !!genre && el.getAttribute('data-genre') !== genre));
+}
 
 function renderAll(filters) {
   renderTimeline(computeGenreShareSeries(rawTracks, filters));
@@ -339,6 +358,8 @@ function render(data) {
     .attr('stroke-opacity', 0.28)
     .attr('fill', 'none')
     .attr('class', 'sankey-link')
+    .attr('data-genre',  d => d.target.name)
+    .attr('data-region', d => d.source.name)
     .style('cursor', 'pointer')
     .on('mouseenter', function(event, d) {
       d3.select(this).attr('stroke-opacity', 0.55);
@@ -367,6 +388,9 @@ function render(data) {
     .attr('fill',   d => REGION_COLORS[d.name] || GENRE_COLORS[d.name] || '#475569')
     .attr('rx', 3)
     .attr('opacity', 0.9)
+    // Genre nodes carry data-genre so a card spotlight can isolate them;
+    // region (source) nodes stay lit since they feed every genre.
+    .attr('data-genre', d => SOURCES.includes(d.name) ? null : d.name)
     .style('cursor', 'pointer')
     .on('mouseenter', function(event, d) {
       d3.select(this).attr('opacity', 1);
