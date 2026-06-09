@@ -36,7 +36,7 @@
 /* Primary — acid fill, black text; hover: invert */
 .btn-primary {
   background: var(--acid);
-  color: #0a0908;
+  color: var(--bg-inset);
   border: 1px solid var(--acid);
 }
 
@@ -868,12 +868,13 @@
   background: var(--bg-elevated);
   border: 1px solid var(--rule-light);
   border-top: 2px solid var(--acid);
-  padding: var(--sp-3) var(--sp-4);
-  font-size: var(--size-sm);
+  padding: var(--sp-4) var(--sp-6);
+  font-size: var(--size-base);
   color: var(--text-primary);
   pointer-events: none;
   box-shadow: var(--shadow-md);
-  max-width: 260px;
+  min-width: 220px;
+  max-width: 320px;
   opacity: 0;
   transition: opacity var(--t-fast);
   border-radius: 0;
@@ -884,24 +885,24 @@
 .tooltip-title {
   font-family: var(--font-body);
   font-weight: var(--weight-semibold);
-  font-size: var(--size-sm);
+  font-size: var(--size-base);
   color: var(--text-primary);
-  margin-bottom: var(--sp-1);
+  margin-bottom: var(--sp-2);
 }
 
 .tooltip-divider {
   height: 1px;
   background: var(--border);
-  margin: var(--sp-2) 0;
+  margin: var(--sp-3) 0;
 }
 
 .tooltip-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--sp-4);
+  gap: var(--sp-6);
   font-family: var(--font-mono);
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   color: var(--text-secondary);
   line-height: var(--leading-snug);
 }
@@ -1115,8 +1116,8 @@
   min-width: 70px;
 }
 
-.insight-row-delta.down { color: #e5321c; }
-.insight-row-delta.up   { color: #82d4be; }
+.insight-row-delta.down { color: var(--danger); }
+.insight-row-delta.up   { color: var(--success); }
 .insight-row-delta.flat { color: var(--text-muted); }
 
 .insight-box-crises {
@@ -1516,7 +1517,7 @@
 }
 
 .light-mode .btn-primary {
-  color: #f0ebe0; /* var(--cream) */
+  color: var(--cream);
 }
 
 .light-mode .btn-primary:hover {

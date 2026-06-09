@@ -20,48 +20,27 @@ import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { loadCSV }                 from '../data-loader.js';
 import { initStoryMode, fx }       from '../story-mode.js';
+import { regionColor, genreColor } from '../colors.js';
 
-// ── Design tokens (must match variables.css) ─────────────────
-const REGION_COLORS = {
-  'Europe':        'var(--acid)',
-  'North America': '#e5321c',
-  'Latin America': '#e07840',
-  'Africa':        '#f0a830',
-  'Asia':          '#6aabf0',
-};
-
-const GENRE_COLORS = {
-  'Pop':        'var(--acid)',
-  'Hip-Hop':    '#e5321c',
-  'Electronic': '#6aabf0',
-  'Latin':      '#f0a830',
-  'R&B':        '#c47fa0',
-  'Afrobeats':  '#82d4be',
-};
-
-// Hex equivalents for SVG attribute use (CSS vars are unreliable in
-// stroke/fill attrs across browsers).
-const REGION_HEX = {
-  'Europe':        '#c8f000',
-  'North America': '#e5321c',
-  'Latin America': '#e07840',
-  'Africa':        '#f0a830',
-  'Asia':          '#6aabf0',
-};
-
-const GENRE_HEX = {
-  'Pop':        '#c8f000',
-  'Hip-Hop':    '#e5321c',
-  'Electronic': '#6aabf0',
-  'Latin':      '#f0a830',
-  'R&B':        '#c47fa0',
-  'Afrobeats':  '#82d4be',
-};
-
-const MUTED_FILL    = '#1c1916'; // var(--bg-elevated)
-const BORDER_STROKE = '#252018'; // var(--border)
-
+// ── Categorical colours ──────────────────────────────────────
+// Resolved from css/variables.css for the active theme via js/colors.js and
+// rebuilt on theme change. Regions and genres are distinct families.
 const SOURCES = ['Europe', 'North America', 'Latin America', 'Africa', 'Asia'];
+const GENRES  = ['Pop', 'Hip-Hop', 'Electronic', 'Latin', 'R&B', 'Afrobeats'];
+
+let REGION_COLORS = {};
+let GENRE_COLORS  = {};
+let MUTED_FILL    = '#1c1916'; // var(--bg-elevated) — re-resolved per theme
+let BORDER_STROKE = '#252018'; // var(--border)      — re-resolved per theme
+
+function refreshColors() {
+  const cs = getComputedStyle(document.documentElement);
+  REGION_COLORS = Object.fromEntries(SOURCES.map(r => [r, regionColor(r)]));
+  GENRE_COLORS  = Object.fromEntries(GENRES.map(g  => [g, genreColor(g)]));
+  MUTED_FILL    = cs.getPropertyValue('--bg-elevated').trim() || MUTED_FILL;
+  BORDER_STROKE = cs.getPropertyValue('--border').trim()      || BORDER_STROKE;
+}
+refreshColors();
 
 // Maps region label → sidebar filter key
 const REGION_FILTER_KEY = {
@@ -231,6 +210,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   window.addEventListener('resize', () => {
+    render(transformToSankey(rawTracks, getFilters()));
+  });
+
+  // Re-resolve colours and redraw when the theme flips.
+  window.addEventListener('themechanged', () => {
+    refreshColors();
     render(transformToSankey(rawTracks, getFilters()));
   });
 
@@ -467,7 +452,7 @@ function setCard(id, value, extra, trend, desc) {
 function computeGenreShareSeries(tracks, filters) {
   const { decadeRange, regions } = filters;
   const [startYear, endYear] = decadeRange;
-  const genres = Object.keys(GENRE_HEX);
+  const genres = Object.keys(GENRE_COLORS);
 
   const filtered = tracks.filter(t => {
     const y = +t.year;
@@ -476,7 +461,7 @@ function computeGenreShareSeries(tracks, filters) {
     if (!region) return false;
     const filterKey = REGION_FILTER_KEY[region];
     if (!regions.includes(filterKey)) return false;
-    return GENRE_HEX[t.genre] != null;
+    return GENRE_COLORS[t.genre] != null;
   });
 
   if (filtered.length === 0) return { years: [], series: [] };
@@ -510,7 +495,7 @@ function computeGenreShareSeries(tracks, filters) {
   const trimmedYears = years.filter(y => y >= firstActive);
   const series = genres.map(g => ({
     genre:  g,
-    color:  GENRE_HEX[g],
+    color:  GENRE_COLORS[g],
     points: points[g].filter(p => p.year >= firstActive),
   }));
 
@@ -697,7 +682,7 @@ function renderWorldMap(filters) {
     if (!region) return MUTED_FILL;
     const key = REGION_FILTER_KEY[region];
     if (!key || !selected.has(key)) return MUTED_FILL;
-    return REGION_HEX[region] || MUTED_FILL;
+    return REGION_COLORS[region] || MUTED_FILL;
   };
 
   const opacityFor = name => {

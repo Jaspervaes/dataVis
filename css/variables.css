@@ -32,10 +32,42 @@
   --rose:        #c47fa0;
   --cream:       #f0ebe0;
 
-  /* Genre line colour that needs theme-awareness (the others are vivid enough
-     for both modes). Rock is a neutral cream on dark; on cream paper it must
-     darken or it vanishes. */
-  --genre-rock:  #f0ebe0;
+  /* ─── Categorical data families ──────────────────────────────
+     Single source of truth for every chart. Four families, each
+     visually distinct from the others; every token is re-tuned in
+     .light-mode below. JS reads these via js/colors.js — never
+     hardcode a categorical hex in a page again. */
+
+  /* Regions (6) — the signature hot spectrum + blue + rose */
+  --region-europe:        #c8f000;
+  --region-north-america: #e5321c;
+  --region-latin-america: #e07840;
+  --region-africa:        #f0a830;
+  --region-asia:          #6aabf0;
+  --region-oceania:       #c47fa0;
+
+  /* Genres (10) — own family, shares no hue with any region */
+  --genre-pop:        #e5379b;  /* magenta */
+  --genre-hiphop:     #7b5cff;  /* violet */
+  --genre-rock:       #f0ebe0;  /* cream — neutral, theme-aware */
+  --genre-electronic: #1fc8d8;  /* cyan */
+  --genre-rnb:        #b15ad6;  /* plum */
+  --genre-latin:      #2fbf8a;  /* emerald */
+  --genre-country:    #c2954a;  /* wheat */
+  --genre-jazz:       #8f9a5b;  /* olive */
+  --genre-classical:  #8e94c4;  /* periwinkle */
+  --genre-afrobeats:  #5fcf9e;  /* mint */
+
+  /* Crises (3) — reserved cool/jewel triad, off the region spectrum */
+  --crisis-economic:  #2dd4bf;  /* teal */
+  --crisis-conflict:  #ec4899;  /* magenta */
+  --crisis-pandemic:  #6366f1;  /* indigo */
+
+  /* Audio features (4) — the timeline metric lines */
+  --feature-valence:      #c8f000;
+  --feature-energy:       #fb923c;
+  --feature-tempo:        #a78bfa;
+  --feature-danceability: #34d399;
 
   /* ─── Text ───────────────────────────────────────────────── */
   --text-primary:   #f0ebe0;
@@ -140,8 +172,33 @@
   --acid-mid:    rgba(70, 92, 0, 0.22);
   --acid-border: rgba(70, 92, 0, 0.35);
 
-  /* Rock darkens to a warm charcoal so it stays legible on cream paper. */
-  --genre-rock:  #4a4540;
+  /* ─── Categorical families — light-tuned for cream paper ─────── */
+  --region-europe:        #5c7400;
+  --region-north-america: #c52d18;
+  --region-latin-america: #bf5a22;
+  --region-africa:        #aa7212;
+  --region-asia:          #2f72c2;
+  --region-oceania:       #9d4f78;
+
+  --genre-pop:        #b81f70;
+  --genre-hiphop:     #5634c9;
+  --genre-rock:       #4a4540;  /* charcoal so it stays legible on cream */
+  --genre-electronic: #0d8d9c;
+  --genre-rnb:        #843aa8;
+  --genre-latin:      #15875f;
+  --genre-country:    #8a6526;
+  --genre-jazz:       #5f6a36;
+  --genre-classical:  #565c8a;
+  --genre-afrobeats:  #1f8a63;
+
+  --crisis-economic:  #0d8073;
+  --crisis-conflict:  #b32568;
+  --crisis-pandemic:  #4b45c0;
+
+  --feature-valence:      #5c7400;
+  --feature-energy:       #c75a10;
+  --feature-tempo:        #6b3fd4;
+  --feature-danceability: #0f8a5f;
 
   /* Text — inverse of dark mode */
   --text-primary:   #1c1916;

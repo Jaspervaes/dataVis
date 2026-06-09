@@ -174,13 +174,13 @@
         </div>
 
         <div class="filter-group" role="group" aria-labelledby="lbl-region">
-          <span class="filter-group-label" id="lbl-region">Region <span class="filter-group-hint">colour = on globe</span></span>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="europe"        checked /> <span class="region-dot" style="background:var(--acid)"></span> Europe</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="north america" checked /> <span class="region-dot" style="background:var(--red)"></span> North America</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="latin america" checked /> <span class="region-dot" style="background:#e07840"></span> Latin America</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="africa"        checked /> <span class="region-dot" style="background:var(--amber)"></span> Africa</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="asia"          checked /> <span class="region-dot" style="background:var(--blue-cool)"></span> Asia</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="oceania"       checked /> <span class="region-dot" style="background:var(--rose)"></span> Oceania</label>
+          <span class="filter-group-label" id="lbl-region">Region <span class="filter-group-hint">colour = on globe · (Europe = baseline)</span></span>
+          <label class="filter-item is-locked" title="Europe is the comparison baseline on this page."><input type="checkbox" data-filter-group="region" value="europe" checked disabled style="display:none;" /> <span class="region-dot" style="background:var(--region-europe)"></span> Europe <span style="margin-left:auto;font-size:0.75em;opacity:0.65;text-transform:uppercase;letter-spacing:0.05em;">baseline</span></label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="north america" checked /> <span class="region-dot" style="background:var(--region-north-america)"></span> North America</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="latin america" checked /> <span class="region-dot" style="background:var(--region-latin-america)"></span> Latin America</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="africa"        checked /> <span class="region-dot" style="background:var(--region-africa)"></span> Africa</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="asia"          checked /> <span class="region-dot" style="background:var(--region-asia)"></span> Asia</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="region" value="oceania"       checked /> <span class="region-dot" style="background:var(--region-oceania)"></span> Oceania</label>
         </div>
 
         <div class="filter-group" role="radiogroup" aria-labelledby="lbl-detail">
@@ -248,7 +248,7 @@
           </p>
         </article>
 
-        <article class="story-card" data-spotlight-region-a="North America" data-spotlight-region-b="Europe" style="--card-accent: #e5321c">
+        <article class="story-card" data-spotlight-region-a="North America" data-spotlight-region-b="Europe" style="--card-accent: var(--region-north-america)">
           <header class="story-card-head">
             <span class="story-card-eyebrow">Collaborations</span>
             <span class="story-card-tag" data-tone="down">Most collabs</span>
@@ -262,7 +262,7 @@
           </p>
         </article>
 
-        <article class="story-card" data-spotlight-region-a="Europe" data-spotlight-region-b="North America" style="--card-accent: #6aabf0">
+        <article class="story-card" data-spotlight-region-a="Europe" data-spotlight-region-b="North America" style="--card-accent: var(--region-europe)">
           <header class="story-card-head">
             <span class="story-card-eyebrow">Collaborations</span>
             <span class="story-card-tag" data-tone="flat">Atlantic axis</span>

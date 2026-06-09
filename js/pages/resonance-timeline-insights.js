@@ -37,12 +37,12 @@ const MARKUP = `
       Music's happiest year, at the height of pre-millennium optimism and the launch of the <strong>Euro</strong>. It hasn't been this high since.
     </p>
     <footer class="story-card-chips">
-      <span class="story-chip" style="--chip-color:#f0a830">Euro launch</span>
-      <span class="story-chip" style="--chip-color:#e5321c">Kosovo War</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-economic)">Euro launch</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-conflict)">Kosovo War</span>
     </footer>
   </article>
 
-  <article class="story-card" id="story-card-break" data-spotlight-year="2011" data-spotlight-feature="valence" style="--card-accent: #e5321c">
+  <article class="story-card" id="story-card-break" data-spotlight-year="2011" data-spotlight-feature="valence" style="--card-accent: var(--crisis-conflict)">
     <header class="story-card-head">
       <span class="story-card-eyebrow" id="story-break-title">Break · 2011</span>
       <span class="story-card-tag" data-tone="down">Sharpest drop</span>
@@ -55,13 +55,13 @@ const MARKUP = `
       Four crises detonated at once. Music has stayed below its <strong>1990s baseline</strong> ever since.
     </p>
     <footer class="story-card-chips">
-      <span class="story-chip" style="--chip-color:#e5321c">Syrian Civil War</span>
-      <span class="story-chip" style="--chip-color:#e5321c">Arab Spring</span>
-      <span class="story-chip" style="--chip-color:#f0a830">Euro Debt Crisis</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-conflict)">Syrian Civil War</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-conflict)">Arab Spring</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-economic)">Euro Debt Crisis</span>
     </footer>
   </article>
 
-  <article class="story-card" id="story-card-floor" data-spotlight-year="2017" data-spotlight-feature="valence" style="--card-accent: #6aabf0">
+  <article class="story-card" id="story-card-floor" data-spotlight-year="2017" data-spotlight-feature="valence" style="--card-accent: var(--crisis-pandemic)">
     <header class="story-card-head">
       <span class="story-card-eyebrow" id="story-floor-title">Floor · 2017</span>
       <span class="story-card-tag" data-tone="down">All-time low</span>
@@ -74,8 +74,8 @@ const MARKUP = `
       The emotional floor. A year of deep political polarization and the ongoing weight of the refugee crisis.
     </p>
     <footer class="story-card-chips">
-      <span class="story-chip" style="--chip-color:#6aabf0">Refugee crisis</span>
-      <span class="story-chip" style="--chip-color:#e5321c">Global polarization</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-pandemic)">Refugee crisis</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-conflict)">Global polarization</span>
     </footer>
   </article>
 </section>`;

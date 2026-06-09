@@ -18,12 +18,11 @@ import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { loadCSV, mockSpotifyTracks, mockGlobalCrises } from '../data-loader.js';
 import { initStoryMode, fx }      from '../story-mode.js';
+import { regionColor, crisisColor, featureColor } from '../colors.js';
 
-const CRISIS_COLORS = {
-  economic:      '#f0a830',
-  armed_conflict:'#e5321c',
-  pandemic:      '#6aabf0',
-};
+// Resolve a CSS custom property live (tracks the active theme).
+const cv = (token, fallback) =>
+  getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
 
 const CRISIS_LABELS = {
   economic:      'Economic',
@@ -31,12 +30,18 @@ const CRISIS_LABELS = {
   pandemic:      'Pandemic',
 };
 
-const FEATURE_COLORS = {
-  valence:      'var(--acid)',
-  energy:       '#fb923c',
-  tempo:        '#a78bfa',
-  danceability: '#34d399',
-};
+// Categorical colours from the shared contract (js/colors.js → variables.css),
+// resolved for the active theme and rebuilt on theme change.
+const FEATURE_KEYS = ['valence', 'energy', 'tempo', 'danceability'];
+const CRISIS_KEYS  = ['economic', 'armed_conflict', 'pandemic'];
+
+let FEATURE_COLORS = {};
+let CRISIS_COLORS  = {};
+function refreshColors() {
+  FEATURE_COLORS = Object.fromEntries(FEATURE_KEYS.map(k => [k, featureColor(k)]));
+  CRISIS_COLORS  = Object.fromEntries(CRISIS_KEYS.map(k  => [k, crisisColor(k)]));
+}
+refreshColors();
 
 const FEATURE_LABELS = {
   valence:      'Valence',
@@ -166,6 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.addEventListener('filters:changed', render);
   window.addEventListener('resize', render);
+  window.addEventListener('themechanged', () => { refreshColors(); render(); });
   // Insight cards (separate module) ask us to spotlight a year on hover.
   window.addEventListener('resonance:spotlight', e => setTimelineSpotlight(e.detail));
 
@@ -504,7 +510,7 @@ function render() {
   focusG.append('line')
     .attr('class', 'focus-line')
     .attr('y1', 0).attr('y2', innerH)
-    .attr('stroke', '#475569')
+    .attr('stroke', cv('--text-muted', '#475569'))
     .attr('stroke-dasharray', '4 3')
     .attr('stroke-width', 1);
 
@@ -514,7 +520,7 @@ function render() {
       .attr('class', `focus-dot focus-dot-${feature}`)
       .attr('r', 5)
       .attr('fill', FEATURE_COLORS[feature])
-      .attr('stroke', '#f1f5f9')
+      .attr('stroke', cv('--text-primary', '#f1f5f9'))
       .attr('stroke-width', 1.5);
   });
 
@@ -878,7 +884,7 @@ function setTimelineSpotlight(spec) {
     sg.append('circle')
       .attr('cx', x).attr('cy', yScale(pt.value)).attr('r', 6)
       .attr('fill', FEATURE_COLORS[spec.feature] || 'var(--acid)')
-      .attr('stroke', '#f1f5f9').attr('stroke-width', 2);
+      .attr('stroke', cv('--text-primary', '#f1f5f9')).attr('stroke-width', 2);
     labelText = `${FEATURE_LABELS[spec.feature]} ${(pt.value * 100).toFixed(0)}% · ${year}`;
   }
 
@@ -890,7 +896,7 @@ function setTimelineSpotlight(spec) {
     .attr('font-family', FONT_STACK)
     .attr('font-size', 11)
     .attr('font-weight', 600)
-    .attr('fill', '#f1f5f9')
+    .attr('fill', cv('--text-primary', '#f1f5f9'))
     .text(labelText);
   const bbox = txt.node().getBBox();
   const cx = Math.max(bbox.width / 2 + 2, Math.min(innerW - bbox.width / 2 - 2, x));
@@ -1101,14 +1107,9 @@ function updateInsightBox(seriesByFeature, quarterlyByFeature, crises, filters, 
     });
   });
 
-  const REGION_COLORS = {
-    europe:           '#c8f000',
-    'north america':  '#e5321c',
-    'latin america':  '#e07840',
-    africa:           '#f0a830',
-    asia:             '#6aabf0',
-    oceania:          '#82d4be',
-  };
+  const REGION_COLORS = Object.fromEntries(
+    ['europe', 'north america', 'latin america', 'africa', 'asia', 'oceania']
+      .map(r => [r, regionColor(r)]));
   const REGION_LABELS = {
     europe:           'Europe',
     'north america':  'North America',

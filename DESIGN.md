@@ -93,24 +93,75 @@ coherent system, and it is the project's main piece of original interaction desi
 ### 5.3 Colour
 
 The palette ("Dead Wax") is intentionally minimal: warm near-blacks, a single
-acid-chartreuse accent for the most important mark on any view, and a small set of
-fixed hues for the six world regions and the genres. Colour is used **meaningfully,
-not decoratively**: the region colour in the sidebar doubles as the legend on the
-globe, the same region hues recur on the Sankey and the forecast, and red is
-reserved for decline and crisis everywhere it appears.
+acid-chartreuse accent for the most important mark on any view, and four
+**distinct categorical families** for the data dimensions. Colour is used
+**meaningfully, not decoratively**: the swatch in the sidebar is the legend, and
+the same hue for a category recurs identically on every page.
+
+The four families are kept visually separate so the reader can always tell *what
+kind of thing* a colour encodes:
+
+* **Regions** — the signature warm spectrum plus blue and rose (Europe, North
+  America, Latin America, Africa, Asia, Oceania).
+* **Genres** — a cooler jewel-and-earth family (magenta, violet, cyan, plum,
+  emerald, mint, wheat, olive, periwinkle, plus a neutral cream/charcoal for
+  Rock) that deliberately shares **no hue** with any region.
+* **Crises / conflicts** — a reserved cool triad (teal · magenta · indigo) that
+  sits off the region spectrum, so an *event* never reads as a *place*. (This is
+  why crisis is no longer encoded in red: red is North America, and the two used
+  to collide.)
+* **Audio features** — the four toggled timeline metrics (valence on the accent;
+  energy, tempo, danceability).
+
+**Single source of truth.** Every categorical colour is a CSS custom property in
+`css/variables.css` (`--region-*`, `--genre-*`, `--crisis-*`, `--feature-*`). The
+charts never hardcode a hex: `js/colors.js` resolves the tokens at render time via
+`regionColor()` / `genreColor()` / `crisisColor()` / `featureColor()`, which also
+normalise the historical label spellings (`Africa/ME` → Africa, `US` → North
+America, case). This is what guarantees a region is the same colour on the globe,
+the Sankey, and the timeline.
 
 Two accessibility decisions:
 
-* **Theme awareness.** All colour lives in CSS custom properties with a full light
-  mode override. Tokens that would fail in one theme are redefined per theme; for
-  example Rock is a neutral cream on the dark background and darkens to a warm
-  charcoal on the light background (`--genre-rock`) so it never disappears.
-* **Colour-blind mitigation.** The categorical palette necessarily uses green,
-  red, and amber together, which sit on the common red/green confusion axis. We
-  mitigate this with redundant encoding rather than colour alone: every region and
-  genre is also labelled directly, positioned consistently, and (on the globe and
-  hitlist) carries shape and directional cues, so no insight depends on
-  distinguishing two hues.
+* **Theme awareness.** Every token has a **separate, hand-tuned value for light and
+  dark mode** (`:root` and `.light-mode` in `variables.css`); the hues that work on
+  the dark ground are darkened for the cream paper rather than reused. Charts
+  re-resolve their colours on the `themechanged` event, so the toggle is live.
+* **Colour-blind mitigation.** The region family necessarily uses green, red, and
+  amber together, which sit on the common red/green confusion axis. We mitigate
+  this with redundant encoding rather than colour alone: every region and genre is
+  also labelled directly, positioned consistently, and (on the globe and hitlist)
+  carries shape and directional cues, so no insight depends on distinguishing two
+  hues.
+
+**Canonical contract (dark / light).** A live swatch reference is rendered at
+`palette.html`.
+
+| Family | Member → token | Dark | Light |
+|---|---|---|---|
+| Region  | Europe `--region-europe`               | `#c8f000` | `#5c7400` |
+| Region  | North America `--region-north-america` | `#e5321c` | `#c52d18` |
+| Region  | Latin America `--region-latin-america` | `#e07840` | `#bf5a22` |
+| Region  | Africa `--region-africa`               | `#f0a830` | `#aa7212` |
+| Region  | Asia `--region-asia`                   | `#6aabf0` | `#2f72c2` |
+| Region  | Oceania `--region-oceania`             | `#c47fa0` | `#9d4f78` |
+| Genre   | Pop `--genre-pop`                      | `#e5379b` | `#b81f70` |
+| Genre   | Hip-Hop `--genre-hiphop`               | `#7b5cff` | `#5634c9` |
+| Genre   | Rock `--genre-rock`                    | `#f0ebe0` | `#4a4540` |
+| Genre   | Electronic `--genre-electronic`        | `#1fc8d8` | `#0d8d9c` |
+| Genre   | R&B `--genre-rnb`                      | `#b15ad6` | `#843aa8` |
+| Genre   | Latin `--genre-latin`                  | `#2fbf8a` | `#15875f` |
+| Genre   | Country `--genre-country`              | `#c2954a` | `#8a6526` |
+| Genre   | Jazz `--genre-jazz`                    | `#8f9a5b` | `#5f6a36` |
+| Genre   | Classical `--genre-classical`          | `#8e94c4` | `#565c8a` |
+| Genre   | Afrobeats `--genre-afrobeats`          | `#5fcf9e` | `#1f8a63` |
+| Crisis  | Economic `--crisis-economic`           | `#2dd4bf` | `#0d8073` |
+| Crisis  | Armed Conflict `--crisis-conflict`     | `#ec4899` | `#b32568` |
+| Crisis  | Pandemic `--crisis-pandemic`           | `#6366f1` | `#4b45c0` |
+| Feature | Valence `--feature-valence`            | `#c8f000` | `#5c7400` |
+| Feature | Energy `--feature-energy`              | `#fb923c` | `#c75a10` |
+| Feature | Tempo `--feature-tempo`                | `#a78bfa` | `#6b3fd4` |
+| Feature | Danceability `--feature-danceability`  | `#34d399` | `#0f8a5f` |
 
 ### 5.4 Typography and layout
 
