@@ -24,13 +24,13 @@ const TARGET_SELECTOR = '#insight-box';
 
 const MARKUP = `
 <section class="story-cards" id="story-cards" aria-label="Timeline insights">
-  <article class="story-card" id="story-card-peak" data-spotlight-year="1999" data-spotlight-feature="valence" style="--card-accent: var(--acid)">
+  <article class="story-card" id="story-card-peak" data-spotlight-year="2000" data-spotlight-feature="valence" style="--card-accent: var(--acid)">
     <header class="story-card-head">
-      <span class="story-card-eyebrow" id="story-peak-title">Peak · 1999</span>
+      <span class="story-card-eyebrow" id="story-peak-title">Peak · 2000</span>
       <span class="story-card-tag" data-tone="up">All-time high</span>
     </header>
     <div class="story-card-hero">
-      <span class="story-card-value" id="story-peak-value">62.7%</span>
+      <span class="story-card-value" id="story-peak-value">59.2%</span>
       <span class="story-card-unit">valence</span>
     </div>
     <p class="story-card-tagline">
@@ -61,18 +61,22 @@ const MARKUP = `
     </footer>
   </article>
 
-  <article class="story-card" id="story-card-floor" data-spotlight-year="2018" data-spotlight-feature="danceability" style="--card-accent: #6aabf0">
+  <article class="story-card" id="story-card-floor" data-spotlight-year="2017" data-spotlight-feature="valence" style="--card-accent: #6aabf0">
     <header class="story-card-head">
-      <span class="story-card-eyebrow" id="story-floor-title">Danceability peak · 2018</span>
-      <span class="story-card-tag" data-tone="flat">Danceability change</span>
+      <span class="story-card-eyebrow" id="story-floor-title">Floor · 2017</span>
+      <span class="story-card-tag" data-tone="down">All-time low</span>
     </header>
     <div class="story-card-hero">
-      <span class="story-card-value" id="story-floor-value">67.0%</span>
-      <span class="story-card-unit">danceability</span>
+      <span class="story-card-value" id="story-floor-value">43.4%</span>
+      <span class="story-card-unit">valence</span>
     </div>
     <p class="story-card-tagline">
-      Despite sadder music, it grew <em>more</em> danceable, climbing to its high in 2018.
+      The emotional floor. A year of deep political polarization and the ongoing weight of the refugee crisis.
     </p>
+    <footer class="story-card-chips">
+      <span class="story-chip" style="--chip-color:#6aabf0">Refugee crisis</span>
+      <span class="story-chip" style="--chip-color:#e5321c">Global polarization</span>
+    </footer>
   </article>
 </section>`;
 

@@ -1,6 +1,6 @@
 # The Roots of Rhythm — Design Rationale
 
-*Data Visualisation in Digital Humanities 2025–2026, KU Leuven.*
+*Data Visualisation 2025–2026, KU Leuven.*
 
 This document records the reasoning behind every major design decision in the
 project: the requirements each visualisation had to meet, the encoding we chose,
@@ -22,12 +22,12 @@ argument told in four chapters.
 
 The framing is deliberately **Europe-centred**: we treat Europe as the baseline
 and ask how it produces, collaborates, feels, and forecasts relative to the rest
-of the world. This is a defensible humanities angle rather than a generic "music
+of the world. This is a defensible analytical angle rather than a generic "music
 trends" dashboard.
 
 ## 2. Target audience
 
-A culturally literate but non-technical reader: a digital-humanities examiner, a
+A culturally literate but non-technical reader: a data visualisation examiner, a
 journalist, or a curious listener. This audience can read a line chart and a map
 but will not tolerate a node-link hairball or unexplained jargon. Two consequences
 follow throughout: (a) every chart must be legible at a glance before it rewards
@@ -228,8 +228,8 @@ We aimed for insights beyond "X is higher than Y":
 
 * **Descriptive.** Pop rose from roughly 30% to 48% of tracked flow; the US and UK
   form the single busiest collaboration corridor.
-* **Interpretive.** Music's emotional floor in the mid-2010s lines up with the
-  refugee crisis and the Paris attacks; the simultaneous rise in danceability
+* **Interpretive.** Music's emotional floor in 2017 lines up with peak political
+  polarization and the ongoing refugee crisis; the simultaneous rise in danceability
   suggests listeners reached for rhythm as mood fell.
 * **Predictive.** The ensemble forecast projects Electronic gaining share while
   Rock declines toward the floor by the late 2020s.

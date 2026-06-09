@@ -2,7 +2,7 @@
 
 **A multi-page data visualisation dashboard exploring how European music has become increasingly global** — tracing artist collaborations, genre evolution, and correlations with world events.
 
-Built for *Data Visualisation in Digital Humanities 2025–2026* at KU Leuven.
+Built for *Data Visualisation 2025–2026* at KU Leuven.
 
 > **This README is the technical build guide.** The reasoning behind the design
 > (requirements, encoding choices, alternatives considered and rejected,
