@@ -772,6 +772,13 @@
   line-height: var(--leading-snug);
 }
 
+/* Linked highlighting: marks dimmed while a story card is hovered
+   (Cultural Flow Sankey). Mirrors genre-forecast's .genre-dimmed. */
+.flow-dimmed {
+  opacity: 0.1;
+  transition: opacity 0.18s ease;
+}
+
 /* ══════════════════════════════════════════════════════════════
    FILTER PILL — sharp tag
 ══════════════════════════════════════════════════════════════ */

@@ -24,7 +24,7 @@ const TARGET_SELECTOR = '#insight-box';
 
 const MARKUP = `
 <section class="story-cards" id="story-cards" aria-label="Timeline insights">
-  <article class="story-card" id="story-card-peak" style="--card-accent: var(--acid)">
+  <article class="story-card" id="story-card-peak" data-spotlight-year="1999" data-spotlight-feature="valence" style="--card-accent: var(--acid)">
     <header class="story-card-head">
       <span class="story-card-eyebrow" id="story-peak-title">Peak · 1999</span>
       <span class="story-card-tag" data-tone="up">All-time high</span>
@@ -42,7 +42,7 @@ const MARKUP = `
     </footer>
   </article>
 
-  <article class="story-card" id="story-card-break" style="--card-accent: #e5321c">
+  <article class="story-card" id="story-card-break" data-spotlight-year="2011" data-spotlight-feature="valence" style="--card-accent: #e5321c">
     <header class="story-card-head">
       <span class="story-card-eyebrow" id="story-break-title">Break · 2011</span>
       <span class="story-card-tag" data-tone="down">Sharpest drop</span>
@@ -61,7 +61,7 @@ const MARKUP = `
     </footer>
   </article>
 
-  <article class="story-card" id="story-card-floor" style="--card-accent: #6aabf0">
+  <article class="story-card" id="story-card-floor" data-spotlight-year="2018" data-spotlight-feature="danceability" style="--card-accent: #6aabf0">
     <header class="story-card-head">
       <span class="story-card-eyebrow" id="story-floor-title">Danceability peak · 2018</span>
       <span class="story-card-tag" data-tone="flat">Danceability change</span>
@@ -80,5 +80,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const anchor = document.querySelector(TARGET_SELECTOR);
   if (!anchor) return;
 
-  anchor.insertAdjacentHTML('afterend', MARKUP);
+  // Lead with the static story cards; the interactive year-detail box
+  // (and its "click a year" prompt) sits below them.
+  anchor.insertAdjacentHTML('beforebegin', MARKUP);
+
+  // Linked highlighting: hovering a card spotlights its year/feature on the
+  // timeline. Decoupled via a window event so resonance-timeline.js needn't
+  // know this module exists (and vice-versa). Fires harmlessly if unhandled.
+  const cards = document.getElementById('story-cards');
+  cards?.querySelectorAll('article[data-spotlight-year]').forEach(card => {
+    const detail = { year: +card.dataset.spotlightYear, feature: card.dataset.spotlightFeature };
+    card.addEventListener('mouseenter', () =>
+      window.dispatchEvent(new CustomEvent('resonance:spotlight', { detail })));
+    card.addEventListener('mouseleave', () =>
+      window.dispatchEvent(new CustomEvent('resonance:spotlight', { detail: null })));
+  });
 });

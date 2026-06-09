@@ -7,8 +7,9 @@
  * toggle swaps between this story panel and the page's standard
  * insights, so it stays reversible/dynamic.
  *
- * Story mode starts ON when the page is opened from the homepage
- * walkthrough (?story=1); otherwise the standard insights show.
+ * Story mode is the default landing view on every page; the segmented
+ * toggle swaps to the standard insights. A link can opt into insights
+ * up-front with ?story=0 (or #insights).
  *
  * Each page calls initStoryMode(config) at the end of its init,
  * after the first render so the filter system is already bound.
@@ -118,7 +119,9 @@ export function initStoryMode(config) {
 
   btns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
+  // The Walkthrough is the default landing view; Insights is one toggle away.
+  // A link can opt into Insights up-front with ?story=0 (or #insights).
   const params = new URLSearchParams(window.location.search);
-  const startStory = params.get('story') === '1' || window.location.hash === '#story';
+  const startStory = params.get('story') !== '0' && window.location.hash !== '#insights';
   setMode(startStory ? 'story' : 'standard');
 }

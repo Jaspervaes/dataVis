@@ -95,6 +95,9 @@ let zoomMode        = false;  // magnifier-lens toggle
 // Survives render() so the lens can re-appear at the same spot after a
 // click-pin triggers a full chart rebuild. Cleared on mouseleave.
 let lastMouseChartX = null;
+// Live chart handle for the insight-card spotlight (linked highlighting).
+// Refreshed at the end of every render(); used by setTimelineSpotlight().
+let chartCtx = null;
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -163,9 +166,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.addEventListener('filters:changed', render);
   window.addEventListener('resize', render);
+  // Insight cards (separate module) ask us to spotlight a year on hover.
+  window.addEventListener('resonance:spotlight', e => setTimelineSpotlight(e.detail));
 
   initStoryMode({
-    insightsSelector: '#story-cards',   // the Peak/Break/Floor cards (injected by resonance-timeline-insights.js); the click-a-year panel stays visible above
+    insightsSelector: '#story-cards',   // the Peak/Break/Floor cards (injected by resonance-timeline-insights.js); the click-a-year panel sits below them
     eyebrow:   'Chapter 03 · Resonance Timeline',
     stat:      '62.7% → 42.7%',
     statLabel: 'Valence from its 1999 peak to its 2015 floor',
@@ -455,13 +460,15 @@ function render() {
       .attr('d', areaGen);
   });
 
-  // Lines on top
+  // Lines on top (tagged so the insight-card spotlight can dim non-matching ones)
   featureEntries.forEach(([feature, fseries]) => {
     g.append('path')
       .datum(fseries)
+      .attr('class', `feature-line feature-line-${feature}`)
       .attr('fill', 'none')
       .attr('stroke', FEATURE_COLORS[feature])
       .attr('stroke-width', 2.5)
+      .style('transition', 'opacity 0.15s ease')
       .attr('d', lineGen);
   });
 
@@ -817,9 +824,83 @@ function render() {
       .on('mouseleave', ()    => tooltip.hide());
   });
 
+  // Hand the freshly-drawn chart to the insight-card spotlight. A rebuild
+  // wipes any active spotlight; that's fine, it re-fires on the next hover.
+  chartCtx = { g, xScale, yScale, seriesByFeature, innerH, filterStart, filterEnd };
+
   updateInsightCards(series, primaryFeature, crises);
   updateInsightBox(seriesByFeature, quarterlyByFeature, crises, filters, primaryFeature);
   updateBadge();
+}
+
+// ── Linked highlighting: spotlight a year/feature from an insight card ──
+// The Peak/Break/Floor story cards dispatch `resonance:spotlight` on hover.
+// We draw a transient guide + dot at the referenced year and dim the other
+// feature lines, so the card and the timeline read as one coordinated view
+// (mirrors the genre-forecast brushing pattern). spec = {year, feature} | null.
+function setTimelineSpotlight(spec) {
+  if (!chartCtx) return;
+  const { g, xScale, yScale, seriesByFeature, innerH, filterStart, filterEnd } = chartCtx;
+
+  // Clear any previous spotlight and restore line opacities.
+  g.selectAll('.card-spotlight').remove();
+  g.selectAll('.feature-line').attr('opacity', 1);
+
+  if (!spec) return;
+  const year = +spec.year;
+  if (!Number.isFinite(year) || year < filterStart || year > filterEnd) return;
+
+  const fseries = seriesByFeature[spec.feature];
+  const hasFeature = !!(fseries && fseries.length);
+
+  // Dim the other lines so the card's feature stands out.
+  if (hasFeature) {
+    g.selectAll('.feature-line').attr('opacity', function () {
+      return this.classList.contains(`feature-line-${spec.feature}`) ? 1 : 0.15;
+    });
+  }
+
+  const sg = g.append('g').attr('class', 'card-spotlight').style('pointer-events', 'none');
+  const x  = xScale(year);
+
+  sg.append('line')
+    .attr('x1', x).attr('x2', x)
+    .attr('y1', 0).attr('y2', innerH)
+    .attr('stroke', 'var(--acid)')
+    .attr('stroke-width', 1.5)
+    .attr('stroke-dasharray', '4 3')
+    .attr('opacity', 0.9);
+
+  let labelText = String(year);
+  if (hasFeature) {
+    const pt = fseries.reduce((best, d) =>
+      Math.abs(d.year - year) < Math.abs(best.year - year) ? d : best);
+    sg.append('circle')
+      .attr('cx', x).attr('cy', yScale(pt.value)).attr('r', 6)
+      .attr('fill', FEATURE_COLORS[spec.feature] || 'var(--acid)')
+      .attr('stroke', '#f1f5f9').attr('stroke-width', 2);
+    labelText = `${FEATURE_LABELS[spec.feature]} ${(pt.value * 100).toFixed(0)}% · ${year}`;
+  }
+
+  // Label chip near the top of the guide, kept inside the plot horizontally.
+  const labelG = sg.append('g');
+  const txt = labelG.append('text')
+    .attr('y', -8)
+    .attr('text-anchor', 'middle')
+    .attr('font-family', FONT_STACK)
+    .attr('font-size', 11)
+    .attr('font-weight', 600)
+    .attr('fill', '#f1f5f9')
+    .text(labelText);
+  const bbox = txt.node().getBBox();
+  const cx = Math.max(bbox.width / 2 + 2, Math.min(innerW - bbox.width / 2 - 2, x));
+  txt.attr('x', cx);
+  labelG.insert('rect', 'text')
+    .attr('x', cx - bbox.width / 2 - 6).attr('y', bbox.y - 3)
+    .attr('width', bbox.width + 12).attr('height', bbox.height + 6)
+    .attr('rx', 3)
+    .attr('fill', 'rgba(15,23,42,0.92)')
+    .attr('stroke', 'var(--acid)').attr('stroke-opacity', 0.5);
 }
 
 // ── Insight box (year-detail panel) ───────────────────────────
