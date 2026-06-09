@@ -434,39 +434,15 @@ function render() {
     .attr('text-anchor', 'middle')
     .text(yLabel);
 
-  // ── Gradient defs (one per active feature) ───────────────
   const defs = svg.append('defs');
-  featureEntries.forEach(([feature]) => {
-    const grad = defs.append('linearGradient')
-      .attr('id', `gradient-${feature}`)
-      .attr('x1', '0%').attr('y1', '0%')
-      .attr('x2', '0%').attr('y2', '100%');
-    const color = FEATURE_COLORS[feature];
-    grad.append('stop').attr('offset', '0%').attr('stop-color', color).attr('stop-opacity', 0.12);
-    grad.append('stop').attr('offset', '100%').attr('stop-color', color).attr('stop-opacity', 0.01);
-  });
 
-  // ── Area + Line (one per active feature) ─────────────────
-  const areaGen = d3.area()
-    .x(d => xScale(d.year))
-    .y0(innerH)
-    .y1(d => yScale(d.value))
-    .curve(d3.curveCatmullRom.alpha(0.5));
-
+  // ── Line (one per active feature) ────────────────────────
   const lineGen = d3.line()
     .x(d => xScale(d.year))
     .y(d => yScale(d.value))
     .curve(d3.curveCatmullRom.alpha(0.5));
 
-  // Areas first (behind lines)
-  featureEntries.forEach(([feature, fseries]) => {
-    g.append('path')
-      .datum(fseries)
-      .attr('fill', `url(#gradient-${feature})`)
-      .attr('d', areaGen);
-  });
-
-  // Lines on top (tagged so the insight-card spotlight can dim non-matching ones)
+  // Lines (tagged so the insight-card spotlight can dim non-matching ones)
   featureEntries.forEach(([feature, fseries]) => {
     g.append('path')
       .datum(fseries)
@@ -586,16 +562,11 @@ function render() {
     .attr('width', LENS_W)
     .attr('height', LENS_TOTAL_H);
 
-  // Pre-build line/area generators for the lens (use innerXScale set per frame).
+  // Pre-build line generator for the lens (use innerXScale set per frame).
   const innerXScale = d3.scaleLinear().range([0, LENS_W]);
   const lensLineGen = d3.line()
     .x(d => innerXScale(d.frac))
     .y(d => yScale(d.value))
-    .curve(d3.curveCatmullRom.alpha(0.5));
-  const lensAreaGen = d3.area()
-    .x(d => innerXScale(d.frac))
-    .y0(innerH)
-    .y1(d => yScale(d.value))
     .curve(d3.curveCatmullRom.alpha(0.5));
 
   // Renders lens contents centered on a cursor X coordinate.
@@ -621,11 +592,6 @@ function render() {
       // Include a small padding on each side so the curve enters/exits cleanly.
       const inWindow = qseries.filter(p => p.frac >= yStart - 0.25 && p.frac <= yEnd + 0.25);
       if (inWindow.length < 2) return;
-      lensContentG.append('path')
-        .attr('class', 'lens-area')
-        .attr('fill', `url(#gradient-${feature})`)
-        .attr('opacity', 0.7)
-        .attr('d', lensAreaGen(inWindow));
       lensContentG.append('path')
         .attr('class', 'lens-line')
         .attr('fill', 'none')

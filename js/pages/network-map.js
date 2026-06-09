@@ -284,8 +284,8 @@ function arcColour(d) {
 
 function arcStrokeFor(d) {
   const c = baseOf(d);
-  // Map [1 .. maxRouteTotal] → [1.0 .. 6.5] px on a sqrt curve.
-  const frac = maxRouteTotal > 1 ? Math.sqrt((c.totalCollabs - 1) / (maxRouteTotal - 1)) : 0;
+  // Map [1 .. maxRouteTotal] → [1.0 .. 6.5] px linearly so stroke width is proportional to data.
+  const frac = maxRouteTotal > 1 ? (c.totalCollabs - 1) / (maxRouteTotal - 1) : 0;
   const base = 1.0 + frac * 5.5;
   if (c === pinnedArc) return base + 1.5;
   if (!pinnedArc && arcMatchesSpotlight(c)) return base + 1.5;

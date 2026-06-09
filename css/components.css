@@ -1385,7 +1385,7 @@
 .chart-grid line {
   stroke: var(--border);
   stroke-dasharray: 2 5;
-  opacity: 0.8;
+  opacity: 0.15;
 }
 
 /* Section heading (viz pages) */
