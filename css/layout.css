@@ -252,6 +252,15 @@
   color: var(--text-primary);
 }
 
+.filter-item.is-locked {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+.filter-item.is-locked:hover {
+  color: var(--text-muted);
+}
+
 .filter-item input[type="checkbox"] {
   flex-shrink: 0;
 }
