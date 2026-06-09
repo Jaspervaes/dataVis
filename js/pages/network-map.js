@@ -165,9 +165,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       fx.decade(1986, 2025);
       fx.group('region', ['europe', 'north america', 'latin america', 'africa', 'asia', 'oceania']);
       fx.checkbox('filter-europe-only', false);
-      fx.radio('granularity', 'country');   // its handler raises the min-collabs floor
+      fx.radio('granularity', 'country');   // its handler raises the min-collabs floor…
+      fx.range('filter-min-collabs', 30);   // …but set it explicitly too, in case the
+                                            // radio was already 'country' (then change
+                                            // never fires) and the floor stays at 1.
+      // Land on the spotlight: dim every arc except the busiest corridor, the
+      // US ↔ UK route the walkthrough headline is about. Mirrors hovering the
+      // "busiest route" insight card. Runs after the fx.* calls have rendered.
+      setGlobeSpotlight({ countryA: 'United States', countryB: 'United Kingdom' });
     },
     clearPreset() {
+      setGlobeSpotlight(null);
       fx.radio('granularity', 'region');
       fx.decade(1986, 2025);
       fx.checkbox('filter-europe-only', false);
@@ -258,10 +266,16 @@ function restyleGlobe() {
 // ── Arc appearance (selection- and layer-aware) ───────────────
 function baseOf(d) { return d.isPulse ? d.base : d; }
 
-// True when an insight card is spotlighting this corridor's region pair.
+// True when an insight card (or the walkthrough) is spotlighting this corridor.
+// A pair with countryA/countryB targets one specific country corridor (e.g.
+// United States ↔ United Kingdom); otherwise it matches a whole region pair.
 function arcMatchesSpotlight(c) {
   if (!spotlightPair) return false;
-  const { a, b } = spotlightPair;
+  const { a, b, countryA, countryB } = spotlightPair;
+  if (countryA && countryB) {
+    return (c.countryA === countryA && c.countryB === countryB) ||
+           (c.countryA === countryB && c.countryB === countryA);
+  }
   return (c.regionA === a && c.regionB === b) || (c.regionA === b && c.regionB === a);
 }
 
