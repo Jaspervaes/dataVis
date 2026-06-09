@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colour Contract — The Roots of Rhythm</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="css/variables.css">
+<style>
+  /* ──────────────────────────────────────────────────────────────
+     PROPOSED CATEGORICAL TOKENS — review copy.
+     These live here for visual sign-off only. Once approved they
+     move into css/variables.css (:root + .light-mode) and become
+     the single source of truth that every page's JS reads.
+     ────────────────────────────────────────────────────────────── */
+  :root {
+    /* Regions (6) */
+    --region-europe:        #c8f000;
+    --region-north-america: #e5321c;
+    --region-latin-america: #e07840;
+    --region-africa:        #f0a830;
+    --region-asia:          #6aabf0;
+    --region-oceania:       #c47fa0;
+
+    /* Genres (10) — own family, no hue shared with any region */
+    --genre-pop:        #e5379b;  /* magenta  (was acid = Europe) */
+    --genre-hiphop:     #7b5cff;  /* violet   (was red  = N. America) */
+    --genre-rock:       #f0ebe0;  /* cream — neutral, theme-aware */
+    --genre-electronic: #1fc8d8;  /* cyan */
+    --genre-rnb:        #b15ad6;  /* plum */
+    --genre-latin:      #2fbf8a;  /* emerald */
+    --genre-country:    #c2954a;  /* wheat */
+    --genre-jazz:       #8f9a5b;  /* olive */
+    --genre-classical:  #8e94c4;  /* periwinkle */
+    --genre-afrobeats:  #5fcf9e;  /* mint */
+
+    /* Crises (3) — reserved cool/jewel family, off the region spectrum */
+    --crisis-economic:  #2dd4bf;
+    --crisis-conflict:  #ec4899;
+    --crisis-pandemic:  #6366f1;
+
+    /* Audio features (4) — the timeline metric lines */
+    --feature-valence:      #c8f000;
+    --feature-energy:       #fb923c;
+    --feature-tempo:        #a78bfa;
+    --feature-danceability: #34d399;
+  }
+
+  .light-mode {
+    --region-europe:        #5c7400;
+    --region-north-america: #c52d18;
+    --region-latin-america: #bf5a22;
+    --region-africa:        #aa7212;
+    --region-asia:          #2f72c2;
+    --region-oceania:       #9d4f78;
+
+    --genre-pop:        #b81f70;  /* magenta */
+    --genre-hiphop:     #5634c9;  /* violet */
+    --genre-rock:       #4a4540;  /* charcoal */
+    --genre-electronic: #0d8d9c;  /* cyan */
+    --genre-rnb:        #843aa8;  /* plum */
+    --genre-latin:      #15875f;  /* emerald */
+    --genre-country:    #8a6526;  /* wheat */
+    --genre-jazz:       #5f6a36;  /* olive */
+    --genre-classical:  #565c8a;  /* periwinkle */
+    --genre-afrobeats:  #1f8a63;  /* mint */
+
+    --crisis-economic:  #0d8073;
+    --crisis-conflict:  #b32568;
+    --crisis-pandemic:  #4b45c0;
+
+    --feature-valence:      #5c7400;
+    --feature-energy:       #c75a10;
+    --feature-tempo:        #6b3fd4;
+    --feature-danceability: #0f8a5f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    transition: background var(--t-base), color var(--t-base);
+  }
+
+  header {
+    padding: var(--sp-12) var(--sp-12) var(--sp-6);
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--sp-6);
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: var(--size-2xl);
+    letter-spacing: var(--tracking-wide);
+    margin: 0 0 var(--sp-2);
+    color: var(--text-primary);
+  }
+  .sub {
+    font-family: var(--font-mono);
+    font-size: var(--size-sm);
+    color: var(--text-secondary);
+    max-width: 60ch;
+    line-height: var(--leading-snug);
+  }
+
+  .toggle {
+    font-family: var(--font-mono);
+    font-size: var(--size-sm);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--rule-light);
+    padding: var(--sp-3) var(--sp-6);
+    cursor: pointer;
+    transition: all var(--t-fast);
+    white-space: nowrap;
+  }
+  .toggle:hover { border-color: var(--acid); color: var(--acid); }
+
+  main { padding: var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-12); }
+
+  section h2 {
+    font-family: var(--font-display);
+    font-size: var(--size-xl);
+    letter-spacing: var(--tracking-wide);
+    margin: 0 0 var(--sp-1);
+  }
+  section .note {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+    margin: 0 0 var(--sp-6);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+  }
+
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--sp-4);
+  }
+  .swatch {
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+  }
+  .chip {
+    height: 84px;
+    display: flex;
+    align-items: flex-end;
+    padding: var(--sp-3);
+  }
+  .chip .dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--bg-base);
+    border: 2px solid rgba(0,0,0,0.25);
+  }
+  .meta { padding: var(--sp-3); }
+  .meta .name {
+    font-family: var(--font-body);
+    font-weight: var(--weight-semibold);
+    font-size: var(--size-sm);
+  }
+  .meta .token {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* On-chart context: a tiny demo showing the families in their real roles */
+  .demo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--sp-6);
+    margin-top: var(--sp-6);
+  }
+  .demo .card {
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    padding: var(--sp-6);
+  }
+  .demo .card h3 {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    color: var(--text-secondary);
+    margin: 0 0 var(--sp-4);
+  }
+  .legend-row { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--size-sm); margin-bottom: var(--sp-2); }
+  .legend-row .sq { width: 24px; height: 12px; }
+  .legend-row .ln { width: 28px; height: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Colour Contract</h1>
+    <div class="sub">Proposed single source of truth — four categorical families, two themes. Toggle the theme to check legibility on both backgrounds. Nothing in the app uses these yet; this page is for sign-off.</div>
+  </div>
+  <button class="toggle" id="themeBtn">Switch to light</button>
+</header>
+
+<main>
+  <section>
+    <h2>Regions</h2>
+    <p class="note">Geographic. The signature warm spectrum + blue + rose. Globe · Sankey (left) · Timeline breakdown.</p>
+    <div class="swatches" id="regions"></div>
+  </section>
+
+  <section>
+    <h2>Genres</h2>
+    <p class="note">Sound. A cooler jewel-and-earth family that shares no hue with any region. Forecast · Sankey (right).</p>
+    <div class="swatches" id="genres"></div>
+  </section>
+
+  <section>
+    <h2>Crises &amp; Conflicts</h2>
+    <p class="note">Events — reserved cool/jewel triad, deliberately off the region spectrum. Note: moved off red so it no longer collides with North America.</p>
+    <div class="swatches" id="crises"></div>
+  </section>
+
+  <section>
+    <h2>Audio features</h2>
+    <p class="note">The timeline metric lines. One shown at a time; valence anchors on the accent.</p>
+    <div class="swatches" id="features"></div>
+  </section>
+
+  <section>
+    <h2>In context</h2>
+    <p class="note">The two screens where families appear together — confirming regions, genres, crises and features stay separable side by side.</p>
+    <div class="demo">
+      <div class="card">
+        <h3>Sankey — regions (left) flow to genres (right)</h3>
+        <div id="demoSankey"></div>
+      </div>
+      <div class="card">
+        <h3>Timeline — feature line over crisis band, regions in breakdown</h3>
+        <div id="demoTimeline"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const FAMILIES = {
+    regions: [
+      ['Europe', '--region-europe'], ['North America', '--region-north-america'],
+      ['Latin America', '--region-latin-america'], ['Africa', '--region-africa'],
+      ['Asia', '--region-asia'], ['Oceania', '--region-oceania'],
+    ],
+    genres: [
+      ['Pop', '--genre-pop'], ['Hip-Hop', '--genre-hiphop'], ['Rock', '--genre-rock'],
+      ['Electronic', '--genre-electronic'], ['R&B', '--genre-rnb'], ['Latin', '--genre-latin'],
+      ['Country', '--genre-country'], ['Jazz', '--genre-jazz'], ['Classical', '--genre-classical'],
+      ['Afrobeats', '--genre-afrobeats'],
+    ],
+    crises: [
+      ['Economic', '--crisis-economic'], ['Armed Conflict', '--crisis-conflict'], ['Pandemic', '--crisis-pandemic'],
+    ],
+    features: [
+      ['Valence', '--feature-valence'], ['Energy', '--feature-energy'],
+      ['Tempo', '--feature-tempo'], ['Danceability', '--feature-danceability'],
+    ],
+  };
+
+  function render(id, items) {
+    const root = document.getElementById(id);
+    root.innerHTML = items.map(([name, token]) => `
+      <div class="swatch">
+        <div class="chip" style="background:var(${token})"><span class="dot"></span></div>
+        <div class="meta"><div class="name">${name}</div><div class="token">${token}</div></div>
+      </div>`).join('');
+  }
+  Object.entries(FAMILIES).forEach(([id, items]) => render(id, items));
+
+  // contextual demos
+  document.getElementById('demoSankey').innerHTML =
+    FAMILIES.regions.slice(0,4).map(([n,t]) => `<div class="legend-row"><span class="sq" style="background:var(${t})"></span>${n}</div>`).join('')
+    + '<div style="height:8px"></div>'
+    + FAMILIES.genres.slice(0,4).map(([n,t]) => `<div class="legend-row"><span class="sq" style="background:var(${t})"></span>${n}</div>`).join('');
+
+  document.getElementById('demoTimeline').innerHTML =
+    FAMILIES.features.map(([n,t]) => `<div class="legend-row"><span class="ln" style="background:var(${t})"></span>${n} line</div>`).join('')
+    + '<div style="height:8px"></div>'
+    + FAMILIES.crises.map(([n,t]) => `<div class="legend-row"><span class="sq" style="background:var(${t});opacity:.4"></span>${n} band</div>`).join('');
+
+  const btn = document.getElementById('themeBtn');
+  btn.addEventListener('click', () => {
+    document.body.classList.toggle('light-mode');
+    document.documentElement.classList.toggle('light-mode');
+    const light = document.body.classList.contains('light-mode');
+    btn.textContent = light ? 'Switch to dark' : 'Switch to light';
+  });
+</script>
+</body>
+</html>

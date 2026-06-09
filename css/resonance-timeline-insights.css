@@ -63,8 +63,8 @@
   white-space: nowrap;
 }
 
-.story-card-tag[data-tone="up"]   { color: #82d4be; }
-.story-card-tag[data-tone="down"] { color: #e5321c; }
+.story-card-tag[data-tone="up"]   { color: var(--success); }
+.story-card-tag[data-tone="down"] { color: var(--danger); }
 .story-card-tag[data-tone="flat"] { color: var(--text-muted); }
 
 .story-card-hero {

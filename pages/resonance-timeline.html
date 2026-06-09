@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="../css/story-mode.css" />
 
   <script src="../js/theme-toggle.js"></script>
+  <script src="../js/accessibility.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 </head>
 <body>
@@ -69,24 +70,24 @@
 
         <div class="filter-group" role="group" aria-labelledby="lbl-audio">
           <span class="filter-group-label" id="lbl-audio">Audio Feature</span>
-          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="energy"       checked /><span class="filter-swatch" style="background:#fb923c"></span> Energy</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="valence"      checked /><span class="filter-swatch" style="background:var(--acid)"></span> Valence</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="tempo"        checked /><span class="filter-swatch" style="background:#a78bfa"></span> Tempo</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="danceability" checked /><span class="filter-swatch" style="background:#34d399"></span> Danceability</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="energy"       checked /><span class="filter-swatch" style="background:var(--feature-energy)"></span> Energy</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="valence"      checked /><span class="filter-swatch" style="background:var(--feature-valence)"></span> Valence</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="tempo"        checked /><span class="filter-swatch" style="background:var(--feature-tempo)"></span> Tempo</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="audio-feature" value="danceability" checked /><span class="filter-swatch" style="background:var(--feature-danceability)"></span> Danceability</label>
 
           <details class="filter-help">
             <summary>What do these mean?</summary>
             <dl class="filter-help-list">
-              <dt><span class="filter-swatch" style="background:#fb923c"></span> Energy</dt>
+              <dt><span class="filter-swatch" style="background:var(--feature-energy)"></span> Energy</dt>
               <dd>Perceived intensity and activity. Loud, fast, noisy tracks (death metal) score high; quiet, slow tracks (a Bach prelude) score low. 0–100%.</dd>
 
-              <dt><span class="filter-swatch" style="background:var(--acid)"></span> Valence</dt>
+              <dt><span class="filter-swatch" style="background:var(--feature-valence)"></span> Valence</dt>
               <dd>Musical positivity. High valence sounds happy or euphoric; low valence sounds sad, angry, or tense. 0–100%.</dd>
 
-              <dt><span class="filter-swatch" style="background:#a78bfa"></span> Tempo</dt>
+              <dt><span class="filter-swatch" style="background:var(--feature-tempo)"></span> Tempo</dt>
               <dd>Estimated speed of the track in beats per minute (BPM). Charted as a 0–200 BPM normalised value.</dd>
 
-              <dt><span class="filter-swatch" style="background:#34d399"></span> Danceability</dt>
+              <dt><span class="filter-swatch" style="background:var(--feature-danceability)"></span> Danceability</dt>
               <dd>How suitable the track is for dancing — based on rhythm stability, beat strength, and regularity. 0–100%.</dd>
             </dl>
             <p class="filter-help-source">Source: Spotify audio features.</p>
@@ -95,9 +96,9 @@
 
         <div class="filter-group" role="group" aria-labelledby="lbl-crisis">
           <span class="filter-group-label" id="lbl-crisis">Crisis Type</span>
-          <label class="filter-item"><input type="checkbox" data-filter-group="crisis-type" value="economic"       checked /><span class="filter-swatch" style="background:#f0a830"></span> Economic</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="crisis-type" value="armed_conflict" checked /><span class="filter-swatch" style="background:#e5321c"></span> Armed Conflict</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="crisis-type" value="pandemic"       checked /><span class="filter-swatch" style="background:#6aabf0"></span> Pandemic</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="crisis-type" value="economic"       checked /><span class="filter-swatch" style="background:var(--crisis-economic)"></span> Economic</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="crisis-type" value="armed_conflict" checked /><span class="filter-swatch" style="background:var(--crisis-conflict)"></span> Armed Conflict</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="crisis-type" value="pandemic"       checked /><span class="filter-swatch" style="background:var(--crisis-pandemic)"></span> Pandemic</label>
         </div>
 
         <div class="filter-group" role="group" aria-labelledby="lbl-region">

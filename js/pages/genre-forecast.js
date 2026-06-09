@@ -14,18 +14,25 @@ import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }   from '../tooltip.js';
 import { loadCSV, mockGenreTrends } from '../data-loader.js';
 import { initStoryMode, fx }      from '../story-mode.js';
+import { regionColor, genreColor, crisisColor } from '../colors.js';
 
-const GENRE_COLORS = {
-  'Pop':        'var(--acid)',
-  'Hip-Hop':    '#e5321c',
-  'Rock':       'var(--genre-rock)',
-  'Electronic': '#f0a830',
-  'R&B':        '#c47fa0',
-  'Latin':      '#6aabf0',
-  'Country':    '#7ec87e',
-  'Jazz':       '#c8a06a',
-  'Classical':  '#a0a0c0',
-};
+// Resolve a CSS custom property live (tracks the active theme).
+const cv = (token, fallback) =>
+  getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
+
+// An rgba wash from a live colour token, with separate dark/light alphas.
+// Tints tuned for the dark ground (e.g. chartreuse at 3.5%) vanish on cream, so
+// the light theme gets a higher alpha to stay visible.
+function wash(token, alphaDark, alphaLight) {
+  const hex = cv(token, '#c8f000');
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const light = document.documentElement.classList.contains('light-mode');
+  return `rgba(${r}, ${g}, ${b}, ${light ? alphaLight : alphaDark})`;
+}
+
+const GENRE_KEYS = ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Country','Jazz','Classical'];
 const GENRE_ORDER = ['Pop','Hip-Hop','Rock','Electronic','R&B','Latin','Country'];
 const HIDDEN_GENRES_HARD = new Set(['Jazz', 'Classical']);  // not featured in the page
 
@@ -59,11 +66,27 @@ let hiddenGenres   = new Set();
 let usingRealData  = false;
 
 const REGION_ORDER = ['US', 'LatAm', 'Asia', 'Africa/ME'];
-const CRISIS_COLORS = {
-  'economic':       '#f0a830',
-  'armed_conflict': '#e5321c',
-  'pandemic':       '#6aabf0',
-};
+const CRISIS_KEYS  = ['economic', 'armed_conflict', 'pandemic'];
+
+// Categorical colours + resolved neutral chrome (axes, labels, rules) from the
+// shared contract in variables.css, rebuilt for the active theme. `N` holds the
+// neutrals so the chart's chrome tracks light/dark instead of staying dark-only.
+let GENRE_COLORS  = {};
+let CRISIS_COLORS = {};
+let REGION_COLORS = {};
+let N = {};
+function refreshColors() {
+  GENRE_COLORS  = Object.fromEntries(GENRE_KEYS.map(g  => [g, genreColor(g)]));
+  CRISIS_COLORS = Object.fromEntries(CRISIS_KEYS.map(k => [k, crisisColor(k)]));
+  REGION_COLORS = Object.fromEntries(REGION_ORDER.map(r => [r, regionColor(r)]));
+  N = {
+    muted:     cv('--text-muted'),
+    secondary: cv('--text-secondary'),
+    rule:      cv('--rule-light'),
+    bg:        cv('--bg-base'),
+  };
+}
+refreshColors();
 
 function monthToDecYear(s) {
   if (s instanceof Date) return s.getUTCFullYear() + s.getUTCMonth() / 12;
@@ -141,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   render();
   window.addEventListener('filters:changed', render);
   window.addEventListener('resize', render);
+  window.addEventListener('themechanged', () => { refreshColors(); render(); });
 
   // Left-panel view switch: Lifecycle Map (default) ⇄ Global Forecast.
   // The hidden panel measures 0px wide, so re-render after each switch to let
@@ -427,20 +451,22 @@ function renderGlobalChart(visible, startYear, endYear) {
     .domain([0, Math.min(70, yMax * 1.12)])
     .range([iH, 0]).nice();
 
-  // Forecast zone — subtle acid wash, matches project design system
+  // Forecast zone — subtle acid wash, matches project design system. Resolved
+  // from the live --acid token with a higher alpha in light mode (moss on cream
+  // needs more opacity than chartreuse on black).
   const fxStart = xScale(FORECAST_START);
   g.append('rect')
     .attr('x', fxStart).attr('y', 0)
     .attr('width', iW - fxStart).attr('height', iH)
-    .attr('fill', 'rgba(200, 240, 0, 0.035)');
+    .attr('fill', wash('--acid', 0.035, 0.12));
   g.append('line')
     .attr('x1', fxStart).attr('x2', fxStart)
     .attr('y1', 0).attr('y2', iH)
-    .attr('stroke', 'rgba(200, 240, 0, 0.28)').attr('stroke-width', 1)
+    .attr('stroke', wash('--acid', 0.28, 0.6)).attr('stroke-width', 1)
     .attr('stroke-dasharray', '4 3');
   g.append('text')
     .attr('x', fxStart + 7).attr('y', 12)
-    .attr('fill', 'rgba(200, 240, 0, 0.7)').attr('font-size', 9)
+    .attr('fill', wash('--acid', 0.7, 1)).attr('font-size', 9)
     .attr('font-family', 'DM Mono, monospace')
     .attr('letter-spacing', '0.18em')
     .text('FORECAST →');
@@ -461,13 +487,13 @@ function renderGlobalChart(visible, startYear, endYear) {
     .attr('x', iW / 2).attr('y', iH + tickLabelH + axisLabelH)
     .attr('text-anchor', 'middle')
     .attr('font-family', 'DM Mono, monospace').attr('font-size', 10)
-    .attr('fill', '#5a5550').attr('letter-spacing', '0.14em')
+    .attr('fill', N.muted).attr('letter-spacing', '0.14em')
     .text('RELEASE YEAR');
   g.append('text').attr('class', 'chart-axis-label')
     .attr('transform', 'rotate(-90)').attr('x', -iH / 2).attr('y', -40)
     .attr('text-anchor', 'middle')
     .attr('font-family', 'DM Mono, monospace').attr('font-size', 10)
-    .attr('fill', '#5a5550').attr('letter-spacing', '0.14em')
+    .attr('fill', N.muted).attr('letter-spacing', '0.14em')
     .text('GENRE SHARE %');
 
   // Lines
@@ -488,7 +514,7 @@ function renderGlobalChart(visible, startYear, endYear) {
 
   // Pre-compute history+forecast PER GENRE so the hover uses the SAME data
   const drawn = visible.map(([genre, s]) => {
-    const color   = GENRE_COLORS[genre] || '#94a3b8';
+    const color   = GENRE_COLORS[genre] || N.secondary;
     const history = s.history.filter(r => r.year >= startYear && r.year <= endYear);
     if (!history.length) return null;
     const forecast = computeEnsembleForecast(history);
@@ -543,7 +569,7 @@ function renderGlobalChart(visible, startYear, endYear) {
   // Hover overlay — uses the SAME forecast data the lines were drawn from
   const focusLine = g.append('line')
     .attr('y1', 0).attr('y2', iH)
-    .attr('stroke', '#5a5550').attr('stroke-dasharray', '2 3')
+    .attr('stroke', N.muted).attr('stroke-dasharray', '2 3')
     .attr('stroke-width', 1).style('display', 'none');
   const dots = g.append('g').attr('class', 'hover-dots');
 
@@ -576,7 +602,7 @@ function renderGlobalChart(visible, startYear, endYear) {
         dots.append('circle')
           .attr('cx', xScale(year)).attr('cy', yScale(r.value))
           .attr('r', 4).attr('fill', r.color)
-          .attr('stroke', '#0e0c0a').attr('stroke-width', 2);
+          .attr('stroke', N.bg).attr('stroke-width', 2);
       });
 
       // Pretty-print quarter labels: 1986.0 → "1986 Q1", forecast year → "2028"
@@ -626,7 +652,7 @@ function renderLegend(svg, visible, width, height, margin, COLS, rowH) {
       .on('mouseenter', () => setGenreHighlight(genreKey(genre)))
       .on('mouseleave', () => setGenreHighlight(null));
 
-    const color = GENRE_COLORS[genre] || '#a09a90';
+    const color = GENRE_COLORS[genre] || N.secondary;
     const dim   = hiddenGenres.has(genre);
 
     item.append('line')
@@ -635,7 +661,7 @@ function renderLegend(svg, visible, width, height, margin, COLS, rowH) {
       .attr('opacity', dim ? 0.25 : 1);
     item.append('text')
       .attr('x', 22).attr('y', 4)
-      .attr('fill', dim ? '#5a5550' : '#a09a90')
+      .attr('fill', dim ? N.muted : N.secondary)
       .attr('font-size', 10)
       .attr('font-family', 'DM Mono, monospace')
       .attr('letter-spacing', '0.06em')
@@ -686,7 +712,7 @@ function renderEUPanel(visibleGenres) {
   const x0 = xScale(0);
   g.append('line')
     .attr('x1', x0).attr('x2', x0).attr('y1', 0).attr('y2', iH)
-    .attr('stroke', '#3e3830').attr('stroke-width', 1);
+    .attr('stroke', N.rule).attr('stroke-width', 1);
 
   // Bars
   g.selectAll('.div-bar')
@@ -697,7 +723,7 @@ function renderEUPanel(visibleGenres) {
     .attr('y', d => yScale(d.genre))
     .attr('width', d => Math.abs(xScale(d.avg_divergence) - x0))
     .attr('height', yScale.bandwidth())
-    .attr('fill', d => d.avg_divergence >= 0 ? (GENRE_COLORS[d.genre] || '#a09a90') : '#3e3830')
+    .attr('fill', d => d.avg_divergence >= 0 ? (GENRE_COLORS[d.genre] || N.secondary) : N.rule)
     .attr('opacity', d => d.avg_divergence >= 0 ? 0.88 : 0.7);
 
   // Value labels
@@ -710,7 +736,7 @@ function renderEUPanel(visibleGenres) {
       : xScale(d.avg_divergence) - 6)
     .attr('y', d => yScale(d.genre) + yScale.bandwidth() / 2 + 4)
     .attr('text-anchor', d => d.avg_divergence >= 0 ? 'start' : 'end')
-    .attr('fill', '#a09a90').attr('font-size', 11)
+    .attr('fill', N.secondary).attr('font-size', 11)
     .attr('font-family', 'DM Mono, monospace')
     .text(d => (d.avg_divergence >= 0 ? '+' : '') + d.avg_divergence.toFixed(1) + ' pp');
 
@@ -722,7 +748,7 @@ function renderEUPanel(visibleGenres) {
     .attr('x', -10)
     .attr('y', d => yScale(d.genre) + yScale.bandwidth() / 2 + 4)
     .attr('text-anchor', 'end')
-    .attr('fill', d => GENRE_COLORS[d.genre] || '#a09a90')
+    .attr('fill', d => GENRE_COLORS[d.genre] || N.secondary)
     .attr('font-size', 13)
     .attr('font-family', 'Bebas Neue, Impact, sans-serif')
     .attr('letter-spacing', '0.04em')
@@ -739,19 +765,14 @@ function renderEUPanel(visibleGenres) {
   g.append('text')
     .attr('x', iW).attr('y', iH + 28)
     .attr('text-anchor', 'end')
-    .attr('fill', '#5a5550').attr('font-size', 9)
+    .attr('fill', N.muted).attr('font-size', 9)
     .attr('font-family', 'DM Mono, monospace')
     .attr('letter-spacing', '0.12em')
     .text('PP = PERCENTAGE POINTS VS. GLOBAL AVERAGE');
 }
 
 // ── Chart 3: short-term EU hitlist momentum forecast ─────────────────────────
-const REGION_COLORS = {
-  'US':        '#e5321c',
-  'LatAm':     '#f0a830',
-  'Asia':      '#6aabf0',
-  'Africa/ME': '#c47fa0',
-};
+// (REGION_COLORS is built from the shared contract in refreshColors, above.)
 
 function fitMonthlyTrend(points, lookbackMonths = 6) {
   if (!points || points.length < 3) return null;
@@ -863,7 +884,7 @@ function renderHitlistForecast(visibleGenres) {
 
     // Left: genre name + subtitle (correlated region)
     const left = document.createElement('div');
-    const color = GENRE_COLORS[p.genre] || '#94a3b8';
+    const color = GENRE_COLORS[p.genre] || N.secondary;
     left.innerHTML = `
       <div class="hitlist-genre" style="color:${color}">${p.genre}</div>
       ${p.bestRegion
@@ -1027,7 +1048,7 @@ function renderLifecycleQuadrant(visibleGenres) {
 
     return {
       genre,
-      color: GENRE_COLORS[genre] || '#a09a90',
+      color: GENRE_COLORS[genre] || N.secondary,
       trail,
       corr,
     };
@@ -1074,12 +1095,12 @@ function renderLifecycleQuadrant(visibleGenres) {
   // ── Subtle per-quadrant background tints ──────────────────────────────────
   // Top-right: Dominant Rising = acid hint, Bottom-left: Fading = red hint
   g.append('rect').attr('x', xMid).attr('y', 0).attr('width', iW - xMid).attr('height', yMid)
-    .attr('fill', 'rgba(200,240,0,0.025)');
+    .attr('fill', wash('--acid', 0.025, 0.08));
   g.append('rect').attr('x', 0).attr('y', yMid).attr('width', xMid).attr('height', iH - yMid)
-    .attr('fill', 'rgba(229,50,28,0.025)');
+    .attr('fill', wash('--red', 0.025, 0.07));
 
   // ── Cross (prominent, neutral grey) ───────────────────────────────────────
-  const AXIS_COLOR = '#5a5550';
+  const AXIS_COLOR = N.muted;
   g.append('line').attr('x1', xMid).attr('x2', xMid).attr('y1', 0).attr('y2', iH)
     .attr('stroke', AXIS_COLOR).attr('stroke-width', 1.5);
   g.append('line').attr('x1', 0).attr('x2', iW).attr('y1', yMid).attr('y2', yMid)
@@ -1099,13 +1120,13 @@ function renderLifecycleQuadrant(visibleGenres) {
   const qLabel = (cx, cy, stage, desc) => {
     g.append('text')
       .attr('x', cx).attr('y', cy).attr('text-anchor', 'middle')
-      .attr('fill', '#8a8580')
+      .attr('fill', N.secondary)
       .attr('font-family', 'Bebas Neue, Impact, sans-serif')
       .attr('font-size', 16).attr('letter-spacing', '0.16em')
       .text(stage);
     g.append('text')
       .attr('x', cx).attr('y', cy + 13).attr('text-anchor', 'middle')
-      .attr('fill', '#5a5550')
+      .attr('fill', N.muted)
       .attr('font-family', 'DM Mono, monospace')
       .attr('font-size', 8.5).attr('letter-spacing', '0.10em')
       .text(desc);
@@ -1126,7 +1147,7 @@ function renderLifecycleQuadrant(visibleGenres) {
       .attr('stroke', AXIS_COLOR).attr('stroke-width', 1.2);
     g.append('text')
       .attr('x', xp).attr('y', yMid + 14).attr('text-anchor', 'middle')
-      .attr('fill', '#7a7570').attr('font-family', 'DM Mono, monospace')
+      .attr('fill', N.muted).attr('font-family', 'DM Mono, monospace')
       .attr('font-size', 9).attr('letter-spacing', '0.06em')
       .text(v + '%');
   });
@@ -1140,7 +1161,7 @@ function renderLifecycleQuadrant(visibleGenres) {
       .attr('stroke', AXIS_COLOR).attr('stroke-width', 1.2);
     g.append('text')
       .attr('x', xMid - 8).attr('y', yp + 3).attr('text-anchor', 'end')
-      .attr('fill', '#7a7570').attr('font-family', 'DM Mono, monospace')
+      .attr('fill', N.muted).attr('font-family', 'DM Mono, monospace')
       .attr('font-size', 9).attr('letter-spacing', '0.06em')
       .text((v > 0 ? '+' : '') + v.toFixed(1) + ' pp');
   });
@@ -1150,7 +1171,7 @@ function renderLifecycleQuadrant(visibleGenres) {
   g.append('text')
     .attr('transform', `translate(-22, ${yMid}) rotate(-90)`)
     .attr('text-anchor', 'middle')
-    .attr('fill', '#a09a90')
+    .attr('fill', N.secondary)
     .attr('font-family', 'DM Mono, monospace')
     .attr('font-size', 10).attr('letter-spacing', '0.22em')
     .text('SHARE');
@@ -1163,7 +1184,7 @@ function renderLifecycleQuadrant(visibleGenres) {
   // Y-dimension label (TREND) anchored at BOTTOM MIDDLE
   g.append('text')
     .attr('x', xMid).attr('y', iH + 22).attr('text-anchor', 'middle')
-    .attr('fill', '#a09a90')
+    .attr('fill', N.secondary)
     .attr('font-family', 'DM Mono, monospace')
     .attr('font-size', 10).attr('letter-spacing', '0.22em')
     .text('6-MO TREND · PP');
@@ -1306,16 +1327,16 @@ function renderLifecycleQuadrant(visibleGenres) {
 
   // "Now" dot
   legG.append('circle').attr('cx', 0).attr('cy', 0).attr('r', 6)
-    .attr('fill', '#a09a90').attr('stroke', 'var(--bg-surface)').attr('stroke-width', 2);
+    .attr('fill', N.secondary).attr('stroke', 'var(--bg-surface)').attr('stroke-width', 2);
   legG.append('text').attr('x', 10).attr('y', 3)
-    .attr('fill', '#a09a90').attr('font-family', 'DM Mono, monospace')
+    .attr('fill', N.secondary).attr('font-family', 'DM Mono, monospace')
     .attr('font-size', 8).attr('letter-spacing', '0.12em').text('TODAY');
 
   // Arrow: share→5yr forecast (X) + current→coming trend (Y)
   legG.append('line').attr('x1', 70).attr('y1', 0).attr('x2', 100).attr('y2', 0)
-    .attr('stroke', '#a09a90').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3');
-  legG.append('path').attr('d', 'M100,-4 L108,0 L100,4 Z').attr('fill', '#a09a90');
+    .attr('stroke', N.secondary).attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3');
+  legG.append('path').attr('d', 'M100,-4 L108,0 L100,4 Z').attr('fill', N.secondary);
   legG.append('text').attr('x', 114).attr('y', 3)
-    .attr('fill', '#a09a90').attr('font-family', 'DM Mono, monospace')
+    .attr('fill', N.secondary).attr('font-family', 'DM Mono, monospace')
     .attr('font-size', 8).attr('letter-spacing', '0.12em').text('HEADING');
 }

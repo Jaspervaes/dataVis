@@ -258,6 +258,7 @@
   </style>
 
   <script src="../js/theme-toggle.js"></script>
+  <script src="../js/accessibility.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 </head>
 <body>
@@ -302,13 +303,13 @@
 
         <div class="filter-group" role="group" aria-labelledby="lbl-genre">
           <span class="filter-group-label" id="lbl-genre">Genres</span>
-          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Pop"        checked /><span class="filter-swatch" style="background:var(--acid)"></span> Pop</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Hip-Hop"    checked /><span class="filter-swatch" style="background:#e5321c"></span> Hip-Hop</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Pop"        checked /><span class="filter-swatch" style="background:var(--genre-pop)"></span> Pop</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Hip-Hop"    checked /><span class="filter-swatch" style="background:var(--genre-hiphop)"></span> Hip-Hop</label>
           <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Rock"       checked /><span class="filter-swatch" style="background:var(--genre-rock)"></span> Rock</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Electronic" checked /><span class="filter-swatch" style="background:#f0a830"></span> Electronic</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="R&amp;B"    checked /><span class="filter-swatch" style="background:#c47fa0"></span> R&amp;B</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Latin"      checked /><span class="filter-swatch" style="background:#6aabf0"></span> Latin</label>
-          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Country"    checked /><span class="filter-swatch" style="background:#7ec87e"></span> Country</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Electronic" checked /><span class="filter-swatch" style="background:var(--genre-electronic)"></span> Electronic</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="R&amp;B"    checked /><span class="filter-swatch" style="background:var(--genre-rnb)"></span> R&amp;B</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Latin"      checked /><span class="filter-swatch" style="background:var(--genre-latin)"></span> Latin</label>
+          <label class="filter-item"><input type="checkbox" data-filter-group="genre" value="Country"    checked /><span class="filter-swatch" style="background:var(--genre-country)"></span> Country</label>
         </div>
 
       </div>
@@ -404,7 +405,7 @@
           </p>
         </article>
 
-        <article class="story-card" data-spotlight="Hip-Hop" style="--card-accent: #e5321c">
+        <article class="story-card" data-spotlight="Hip-Hop" style="--card-accent: var(--genre-hiphop)">
           <header class="story-card-head">
             <span class="story-card-eyebrow">Biggest Loss</span>
             <span class="story-card-tag" data-tone="down">Hip Hop</span>
@@ -418,7 +419,7 @@
           </p>
         </article>
 
-        <article class="story-card" data-spotlight="Rock" style="--card-accent: #7ec87e">
+        <article class="story-card" data-spotlight="Rock" style="--card-accent: var(--genre-rock)">
           <header class="story-card-head">
             <span class="story-card-eyebrow">Rock is dead</span>
             <span class="story-card-tag" data-tone="flat">Genre exit</span>

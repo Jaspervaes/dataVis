@@ -22,6 +22,7 @@ import { initFilters, getFilters } from '../filters.js';
 import { tooltip, tooltipHtml }    from '../tooltip.js';
 import { loadCSV }                 from '../data-loader.js';
 import { initStoryMode, fx }       from '../story-mode.js';
+import { regionColor }             from '../colors.js';
 
 const CONNECTIONS_PATH = '../data/artist-connections.csv';
 const PLACEHOLDER_PATH = '../data/artist-connections-placeholder.csv';
@@ -49,18 +50,11 @@ let granularity   = 'region';  // 'region' (overview) | 'country' (detail)
 let pinnedArc     = null;      // corridor kept open on click
 let spotlightPair = null;      // {a,b} region pair spotlit by an insight-card hover
 
-// ── Theme-reactive colours (read CSS vars at call time) ───────
+// ── Theme-reactive colours ────────────────────────────────────
+// Region hues come from the shared colour contract (js/colors.js → the
+// --region-* tokens in variables.css), resolved live so they track the theme.
 function regionColour(region) {
-  const root = getComputedStyle(document.documentElement);
-  const map = {
-    'Europe':        root.getPropertyValue('--acid').trim()      || '#c8f000',
-    'North America': root.getPropertyValue('--red').trim()       || '#e5321c',
-    'Latin America': '#e07840',  // matches sankey/cultural-flow (no CSS token)
-    'Africa':        root.getPropertyValue('--amber').trim()     || '#f0a830',
-    'Asia':          root.getPropertyValue('--blue-cool').trim() || '#6aabf0',
-    'Oceania':       root.getPropertyValue('--rose').trim()      || '#c47fa0',
-  };
-  return map[region] || '#7c3aed';
+  return regionColor(region);
 }
 function bgColour() {
   const root = getComputedStyle(document.documentElement);
@@ -290,8 +284,8 @@ function arcColour(d) {
 
 function arcStrokeFor(d) {
   const c = baseOf(d);
-  // Map [1 .. maxRouteTotal] → [1.0 .. 6.5] px on a sqrt curve.
-  const frac = maxRouteTotal > 1 ? Math.sqrt((c.totalCollabs - 1) / (maxRouteTotal - 1)) : 0;
+  // Map [1 .. maxRouteTotal] → [1.0 .. 6.5] px linearly so stroke width is proportional to data.
+  const frac = maxRouteTotal > 1 ? (c.totalCollabs - 1) / (maxRouteTotal - 1) : 0;
   const base = 1.0 + frac * 5.5;
   if (c === pinnedArc) return base + 1.5;
   if (!pinnedArc && arcMatchesSpotlight(c)) return base + 1.5;

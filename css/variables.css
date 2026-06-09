@@ -32,10 +32,42 @@
   --rose:        #c47fa0;
   --cream:       #f0ebe0;
 
-  /* Genre line colour that needs theme-awareness (the others are vivid enough
-     for both modes). Rock is a neutral cream on dark; on cream paper it must
-     darken or it vanishes. */
-  --genre-rock:  #f0ebe0;
+  /* ─── Categorical data families ──────────────────────────────
+     Single source of truth for every chart. Four families, each
+     visually distinct from the others; every token is re-tuned in
+     .light-mode below. JS reads these via js/colors.js — never
+     hardcode a categorical hex in a page again. */
+
+  /* Regions (6) — the signature hot spectrum + blue + rose */
+  --region-europe:        #c8f000;
+  --region-north-america: #e5321c;
+  --region-latin-america: #e07840;
+  --region-africa:        #f0a830;
+  --region-asia:          #6aabf0;
+  --region-oceania:       #c47fa0;
+
+  /* Genres (10) — own family, shares no hue with any region */
+  --genre-pop:        #e5379b;  /* magenta */
+  --genre-hiphop:     #7b5cff;  /* violet */
+  --genre-rock:       #f0ebe0;  /* cream — neutral, theme-aware */
+  --genre-electronic: #1fc8d8;  /* cyan */
+  --genre-rnb:        #b15ad6;  /* plum */
+  --genre-latin:      #2fbf8a;  /* emerald */
+  --genre-country:    #c2954a;  /* wheat */
+  --genre-jazz:       #8f9a5b;  /* olive */
+  --genre-classical:  #8e94c4;  /* periwinkle */
+  --genre-afrobeats:  #5fcf9e;  /* mint */
+
+  /* Crises (3) — reserved cool/jewel triad, off the region spectrum */
+  --crisis-economic:  #2dd4bf;  /* teal */
+  --crisis-conflict:  #ec4899;  /* magenta */
+  --crisis-pandemic:  #6366f1;  /* indigo */
+
+  /* Audio features (4) — the timeline metric lines */
+  --feature-valence:      #c8f000;
+  --feature-energy:       #fb923c;
+  --feature-tempo:        #a78bfa;
+  --feature-danceability: #34d399;
 
   /* ─── Text ───────────────────────────────────────────────── */
   --text-primary:   #f0ebe0;
@@ -140,8 +172,33 @@
   --acid-mid:    rgba(70, 92, 0, 0.22);
   --acid-border: rgba(70, 92, 0, 0.35);
 
-  /* Rock darkens to a warm charcoal so it stays legible on cream paper. */
-  --genre-rock:  #4a4540;
+  /* ─── Categorical families — light-tuned for cream paper ─────── */
+  --region-europe:        #5c7400;
+  --region-north-america: #c52d18;
+  --region-latin-america: #bf5a22;
+  --region-africa:        #aa7212;
+  --region-asia:          #2f72c2;
+  --region-oceania:       #9d4f78;
+
+  --genre-pop:        #b81f70;
+  --genre-hiphop:     #5634c9;
+  --genre-rock:       #4a4540;  /* charcoal so it stays legible on cream */
+  --genre-electronic: #0d8d9c;
+  --genre-rnb:        #843aa8;
+  --genre-latin:      #15875f;
+  --genre-country:    #8a6526;
+  --genre-jazz:       #5f6a36;
+  --genre-classical:  #565c8a;
+  --genre-afrobeats:  #1f8a63;
+
+  --crisis-economic:  #0d8073;
+  --crisis-conflict:  #b32568;
+  --crisis-pandemic:  #4b45c0;
+
+  --feature-valence:      #5c7400;
+  --feature-energy:       #c75a10;
+  --feature-tempo:        #6b3fd4;
+  --feature-danceability: #0f8a5f;
 
   /* Text — inverse of dark mode */
   --text-primary:   #1c1916;
@@ -157,4 +214,76 @@
   --shadow-sm:   0 1px 4px rgba(0,0,0,0.1);
   --shadow-md:   0 4px 12px rgba(0,0,0,0.12);
   --shadow-lg:   0 10px 24px rgba(0,0,0,0.15);
+}
+
+/* ─── Color Blindness Overrides ──────────────────────────────
+   Using Blue-Orange/Yellow-Blue spectrums to ensure contrast
+   for color-deficient vision as recommended in accessibility guidelines.
+───────────────────────────────────────────────────────────── */
+
+/* Protanopia (Red-Blind) & Deuteranopia (Green-Blind)
+   Rely on Blue/Yellow contrast since Red/Green distinguishability is lost. */
+.theme-protanopia,
+.theme-deuteranopia {
+  /* Regions */
+  --region-europe:        #FFC20A; /* Bright Yellow */
+  --region-north-america: #0C7BDC; /* Strong Blue */
+  --region-latin-america: #E66100; /* Orange */
+  --region-africa:        #5D3A9B; /* Deep Purple */
+  --region-asia:          #994F00; /* Dark Orange/Brown */
+  --region-oceania:       #40B0A6; /* Teal */
+
+  /* Genres */
+  --genre-pop:        #0C7BDC;
+  --genre-hiphop:     #FFC20A;
+  --genre-rock:       #E66100;
+  --genre-electronic: #40B0A6;
+  --genre-rnb:        #5D3A9B;
+  --genre-latin:      #994F00;
+  --genre-country:    #D35FB7; /* Accessible Pink */
+  --genre-jazz:       #1A85FF; /* Light Blue */
+  --genre-classical:  #FEFE62; /* Light Yellow */
+  --genre-afrobeats:  #D41159; /* Magenta-ish */
+
+  /* Crises */
+  --crisis-economic:  #1A85FF;
+  --crisis-conflict:  #D41159;
+  --crisis-pandemic:  #FFC20A;
+  
+  /* Status */
+  --danger:  #D41159;
+  --success: #1A85FF;
+}
+
+/* Tritanopia (Blue-Blind)
+   Rely on Red/Cyan contrast since Blue/Yellow distinguishability is lost. */
+.theme-tritanopia {
+  /* Regions */
+  --region-europe:        #E66100; /* Orange */
+  --region-north-america: #40B0A6; /* Teal */
+  --region-latin-america: #D41159; /* Magenta-Red */
+  --region-africa:        #FFC20A; /* Yellow */
+  --region-asia:          #5D3A9B; /* Deep Purple */
+  --region-oceania:       #1A85FF; /* Light Blue */
+
+  /* Genres */
+  --genre-pop:        #40B0A6;
+  --genre-hiphop:     #E66100;
+  --genre-rock:       #D41159;
+  --genre-electronic: #FFC20A;
+  --genre-rnb:        #1A85FF;
+  --genre-latin:      #5D3A9B;
+  --genre-country:    #D35FB7;
+  --genre-jazz:       #0C7BDC;
+  --genre-classical:  #FEFE62;
+  --genre-afrobeats:  #994F00;
+
+  /* Crises */
+  --crisis-economic:  #40B0A6;
+  --crisis-conflict:  #E66100;
+  --crisis-pandemic:  #D41159;
+  
+  /* Status */
+  --danger:  #E66100;
+  --success: #40B0A6;
 }
