@@ -215,3 +215,75 @@
   --shadow-md:   0 4px 12px rgba(0,0,0,0.12);
   --shadow-lg:   0 10px 24px rgba(0,0,0,0.15);
 }
+
+/* ─── Color Blindness Overrides ──────────────────────────────
+   Using Blue-Orange/Yellow-Blue spectrums to ensure contrast
+   for color-deficient vision as recommended in accessibility guidelines.
+───────────────────────────────────────────────────────────── */
+
+/* Protanopia (Red-Blind) & Deuteranopia (Green-Blind)
+   Rely on Blue/Yellow contrast since Red/Green distinguishability is lost. */
+.theme-protanopia,
+.theme-deuteranopia {
+  /* Regions */
+  --region-europe:        #FFC20A; /* Bright Yellow */
+  --region-north-america: #0C7BDC; /* Strong Blue */
+  --region-latin-america: #E66100; /* Orange */
+  --region-africa:        #5D3A9B; /* Deep Purple */
+  --region-asia:          #994F00; /* Dark Orange/Brown */
+  --region-oceania:       #40B0A6; /* Teal */
+
+  /* Genres */
+  --genre-pop:        #0C7BDC;
+  --genre-hiphop:     #FFC20A;
+  --genre-rock:       #E66100;
+  --genre-electronic: #40B0A6;
+  --genre-rnb:        #5D3A9B;
+  --genre-latin:      #994F00;
+  --genre-country:    #D35FB7; /* Accessible Pink */
+  --genre-jazz:       #1A85FF; /* Light Blue */
+  --genre-classical:  #FEFE62; /* Light Yellow */
+  --genre-afrobeats:  #D41159; /* Magenta-ish */
+
+  /* Crises */
+  --crisis-economic:  #1A85FF;
+  --crisis-conflict:  #D41159;
+  --crisis-pandemic:  #FFC20A;
+  
+  /* Status */
+  --danger:  #D41159;
+  --success: #1A85FF;
+}
+
+/* Tritanopia (Blue-Blind)
+   Rely on Red/Cyan contrast since Blue/Yellow distinguishability is lost. */
+.theme-tritanopia {
+  /* Regions */
+  --region-europe:        #E66100; /* Orange */
+  --region-north-america: #40B0A6; /* Teal */
+  --region-latin-america: #D41159; /* Magenta-Red */
+  --region-africa:        #FFC20A; /* Yellow */
+  --region-asia:          #5D3A9B; /* Deep Purple */
+  --region-oceania:       #1A85FF; /* Light Blue */
+
+  /* Genres */
+  --genre-pop:        #40B0A6;
+  --genre-hiphop:     #E66100;
+  --genre-rock:       #D41159;
+  --genre-electronic: #FFC20A;
+  --genre-rnb:        #1A85FF;
+  --genre-latin:      #5D3A9B;
+  --genre-country:    #D35FB7;
+  --genre-jazz:       #0C7BDC;
+  --genre-classical:  #FEFE62;
+  --genre-afrobeats:  #994F00;
+
+  /* Crises */
+  --crisis-economic:  #40B0A6;
+  --crisis-conflict:  #E66100;
+  --crisis-pandemic:  #D41159;
+  
+  /* Status */
+  --danger:  #E66100;
+  --success: #40B0A6;
+}
