@@ -94,6 +94,35 @@
     .globe-overlay--tl { top: 14px; left: 14px; display: flex; flex-direction: column; gap: 8px; }
     .globe-overlay--bl { bottom: 14px; left: 14px; }
 
+    /* Zoom +/- controls — top-right of the globe, trackpad-friendly.
+       (Bottom-right is occupied by the fixed a11y widget, z-index 1000.) */
+    .globe-zoom-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+    }
+    .globe-zoom-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      font-family: var(--font-mono);
+      font-size: 16px;
+      line-height: 1;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .globe-zoom-btn + .globe-zoom-btn { border-top: none; }
+    .globe-zoom-btn:hover { color: var(--acid); border-color: var(--acid-border); }
+    .globe-zoom-btn:focus-visible { outline: 2px solid var(--acid); outline-offset: -2px; }
+
     /* Compact insight cards for the corner HUD. */
     #insight-overlay .insight-card {
       min-width: 0;
@@ -277,6 +306,13 @@
           </p>
         </article>
       </section>
+
+      <!-- Zoom controls — reparented into #viz-container by network-map.js after
+           the globe mounts (globe.gl clears the container's static children). -->
+      <div class="globe-zoom-controls" id="globe-zoom-controls">
+        <button id="globe-zoom-in"  class="globe-zoom-btn" type="button" aria-label="Zoom in">+</button>
+        <button id="globe-zoom-out" class="globe-zoom-btn" type="button" aria-label="Zoom out">&minus;</button>
+      </div>
 
       <!-- Insight HUD — reparented into #viz-container by network-map.js after
            the globe mounts (globe.gl clears the container's static children). -->

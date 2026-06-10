@@ -195,9 +195,12 @@ function initGlobe(container) {
     .atmosphereAltitude(0.15)
     .globeImageUrl(null);
 
-  // globe.gl clears the container on mount, so move the insight HUD in now.
+  // globe.gl clears the container on mount, so move the insight HUD and
+  // zoom controls in now.
   const hud = document.getElementById('insight-overlay');
   if (hud) container.appendChild(hud);
+  const zoomControls = document.getElementById('globe-zoom-controls');
+  if (zoomControls) container.appendChild(zoomControls);
 
   const mat = globe.globeMaterial();
   mat.color.set(bgColour());
@@ -230,6 +233,19 @@ function initGlobe(container) {
   container.addEventListener('wheel', e => {
     if (!e.ctrlKey && !e.metaKey) showScrollHint(container);
   }, { passive: true });
+
+  // +/- buttons step the camera altitude — works for trackpad users without
+  // needing the Ctrl/Meta scroll-zoom gesture.
+  const ZOOM_MIN_ALT = 0.4;
+  const ZOOM_MAX_ALT = 4;
+  const zoomBy = factor => {
+    if (!globe) return;
+    const pov = globe.pointOfView();
+    const altitude = Math.max(ZOOM_MIN_ALT, Math.min(ZOOM_MAX_ALT, pov.altitude * factor));
+    globe.pointOfView({ lat: pov.lat, lng: pov.lng, altitude }, 300);
+  };
+  document.getElementById('globe-zoom-in')?.addEventListener('click', () => zoomBy(0.75));
+  document.getElementById('globe-zoom-out')?.addEventListener('click', () => zoomBy(1 / 0.75));
 
   sizeGlobe();
 }
