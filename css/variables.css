@@ -81,7 +81,7 @@
   --rule-light:    #3e3830;
 
   /* ─── Status ─────────────────────────────────────────────── */
-  --success: var(--sage);
+  --success: #2fbf8a;   /* emerald — positive / "all-time high" indicators */
   --danger:  var(--red);
   --warning: var(--amber);
 
@@ -209,6 +209,9 @@
   --border:        #d5d0c5;
   --rule:          #c5c0b5;
   --rule-light:    #b5b0a5;
+
+  /* Status — emerald darkens so it stays readable on cream paper */
+  --success:       #15875f;
 
   /* Shadows — softer, more natural on light paper */
   --shadow-sm:   0 1px 4px rgba(0,0,0,0.1);
