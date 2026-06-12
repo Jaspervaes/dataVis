@@ -2,7 +2,7 @@
  * resonance-timeline-insights.js
  * ─────────────────────────────────────────────────────────────
  * Story cards parked below the Resonance Timeline year-detail box:
- *   PEAK · 1999  ·  BREAK · 2011  ·  FLOOR · 2018
+ *   PEAK · 1986  ·  BREAK · 2011  ·  FLOOR · 2017
  *
  * Self-contained. Injects its own markup after #insight-box.
  * Nothing in resonance-timeline.js depends on this file.
@@ -24,21 +24,21 @@ const TARGET_SELECTOR = '#insight-box';
 
 const MARKUP = `
 <section class="story-cards" id="story-cards" aria-label="Timeline insights">
-  <article class="story-card" id="story-card-peak" data-spotlight-year="2000" data-spotlight-feature="valence" style="--card-accent: var(--acid)">
+  <article class="story-card" id="story-card-peak" data-spotlight-year="1986" data-spotlight-feature="valence" style="--card-accent: var(--acid)">
     <header class="story-card-head">
-      <span class="story-card-eyebrow" id="story-peak-title">Peak · 2000</span>
+      <span class="story-card-eyebrow" id="story-peak-title">Peak · 1986</span>
       <span class="story-card-tag" data-tone="up">All-time high</span>
     </header>
     <div class="story-card-hero">
-      <span class="story-card-value" id="story-peak-value">59.2%</span>
+      <span class="story-card-value" id="story-peak-value">60.4%</span>
       <span class="story-card-unit">valence</span>
     </div>
     <p class="story-card-tagline">
-      Music's happiest year, at the height of pre-millennium optimism and the launch of the <strong>Euro</strong>. It hasn't been this high since.
+      Music's happiest year is also the dataset's first. Valence never climbs back to its <strong>1986</strong> high — even with the AIDS and Savings &amp; Loan crises already underway.
     </p>
     <footer class="story-card-chips">
-      <span class="story-chip" style="--chip-color:var(--crisis-economic)">Euro launch</span>
-      <span class="story-chip" style="--chip-color:var(--crisis-conflict)">Kosovo War</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-pandemic)">AIDS Crisis</span>
+      <span class="story-chip" style="--chip-color:var(--crisis-economic)">S&amp;L Crisis</span>
     </footer>
   </article>
 

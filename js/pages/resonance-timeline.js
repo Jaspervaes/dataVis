@@ -178,8 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initStoryMode({
     insightsSelector: '#story-cards',   // the Peak/Break/Floor cards (injected by resonance-timeline-insights.js); the click-a-year panel sits below them
     eyebrow:   'Chapter 03 · Resonance Timeline',
-    stat:      '59.2% → 43.4%',
-    statLabel: 'Valence from its 2000 peak to its 2017 floor',
+    stat:      '60.4% → 43.4%',
+    statLabel: 'Valence from its 1986 peak to its 2017 floor',
     body:      "As the world grew sadder, the music grew more danceable. People reached for rhythm when joy slipped out of reach.",
     next: { href: 'genre-forecast.html?story=1', label: 'Genre Forecast', teaser: 'So where is all of this heading?' },
     applyPreset() {
